@@ -20,336 +20,194 @@ namespace RecSys
             // Enable multi-threading for Math.Net
             Control.UseMultiThreading();
 
+            /************************************************************
+             *   1. Load data sets
+             *   2. Compute/load similarities
+             *   3. R_train     => Rating Matrix train set
+             *   4. R_test      => Rating Matrix test set
+             *   5. R_unknown   => Rating Matrix with ones indicating unknown entries in the R_test
+             *   6. PR_train    => Preference relations constructed from R_train
+             *   7. PR_test     => Preference relations constructed from R_test
+             *   8. userSimilaritiesOfRating    => The user-user similarities from R_train
+             *   9. userSimilaritiesOfPref      => The user-user similarities from PR_train
+             *   10. relevantItemsByUser        => The relevant items of each user based on R_test, 
+             *          is used as ground truth in all ranking evalution
+            ************************************************************/
             #region Prepare rating data
-            Utils.PrintHeading("Prepare rating data");
             Utils.StartTimer();
+            Utils.PrintHeading("Prepare rating data");
             RatingMatrix R_train;
             RatingMatrix R_test;
-            //Utilities.LoadMovieLens("u.data", out R_test, out R_train, 60, 10);   // This will produce the normal performance of NMF, KNN, etc.
             Utils.LoadMovieLensSplitByCount("u.data", out R_train, out R_test);
             RatingMatrix R_unknown = R_test.IndexesOfNonZeroElements();
-            Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
             Console.WriteLine(R_train.DatasetBrief("Train set"));
             Console.WriteLine(R_test.DatasetBrief("Test set"));
-            Utils.WriteMatrix(R_train.Matrix, "R_train.csv");
-            Utils.WriteMatrix(R_test.Matrix, "R_test.csv");
-
-            Console.WriteLine("Extract relevant items from test set with threshold = " 
-                + Config.Ratings.RelevanceThreshold);
-            Dictionary<int, List<int>> relevantItemsByUser =
-                ItemRecommendationCore.GetRelevantItemsByUser(R_test, Config.Ratings.RelevanceThreshold);
-            Console.WriteLine("Average # of relevant items per user = "
-                + relevantItemsByUser.Average(k => k.Value.Count).ToString("0.0"));
+            //Utils.WriteMatrix(R_train.Matrix, "R_train.csv");
+            //Utils.WriteMatrix(R_test.Matrix, "R_test.csv");
+            Utils.PrintValue("Extract relevant items from test set", Config.Ratings.RelevanceThreshold.ToString("0.0"));
+            Dictionary<int, List<int>> relevantItemsByUser = ItemRecommendationCore
+                .GetRelevantItemsByUser(R_test, Config.Ratings.RelevanceThreshold);
+            Utils.PrintValue("Average # of relevant items per user",
+                relevantItemsByUser.Average(k => k.Value.Count).ToString("0"));
+            Utils.StopTimer();
             Utils.Pause();
-            #endregion
-
-            #region Run Global Mean
-            if (Config.RunGlobalMean)
-            {
-                Utils.PrintHeading("Global Mean");
-                double globalMean = R_train.GetGlobalMean();
-                RatingMatrix R_predicted = R_unknown.Multiply(globalMean);
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}" , 
-                    "RMSE", RMSE.Evaluate(R_test, R_predicted));
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}", "MAE", MAE.Evaluate(R_test, R_predicted));
-            }
-            Utils.Pause();
-            #endregion
-
-            #region Run rating based UserKNN
-            if (Config.RunRatingUserKNN)
-            {
-                Utils.PrintHeading("Rating based User KNN");
-
-                // Compute or load similarities
-                if (Config.RecomputeSimilarity)
-                {
-                    Console.WriteLine("Compute user-user similarities ... ");
-                    Utils.StartTimer();
-                    R_train.UserSimilarities = Metric.GetPearsonOfRows(R_train);
-                    Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
-                    Utils.WriteMatrix(R_train.UserSimilarities, Config.Ratings.UserSimilarityFile);
-
-                    Console.WriteLine("Total similarities=" + R_train.UserSimilarities.RowSums().Sum().ToString());
-                    Console.WriteLine("Total abs similarities=" + R_train.UserSimilarities.RowAbsoluteSums().Sum().ToString());
-                }
-                else
-                {
-                    Console.Write("Load user-user similarities ... ");
-                    R_train.UserSimilarities = Utils.ReadDenseMatrix(Config.Ratings.UserSimilarityFile);
-                    Console.WriteLine("completed.");
-                }
-
-                // Prediction
-                Utils.StartTimer();
-                RatingMatrix R_predicted = UserKNN.PredictRatings(R_train, R_unknown, Config.KNN.K);
-                Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
-
-                // Evaluation
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}", "RMSE", RMSE.Evaluate(R_test, R_predicted));
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}", "MAE", MAE.Evaluate(R_test, R_predicted));
-                for (int i = 1; i <= 10; i++)
-                {
-                    Console.WriteLine("{0,-23} │ {1,13:0.0000}",
-                    "NCDG@" + i, NCDG.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(R_predicted, i), i));
-                }
-                for (int i = 1; i <= 10; i++)
-                {
-                    Console.WriteLine("{0,-23} │ {1,13:0.0000}",
-                    "Precision@" + i, Precision.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(R_predicted, i), i));
-                }
-                
-                Utils.Pause();
-            }
-            #endregion
-
-            #region Run rating based NMF
-            if (Config.RunNMF)
-            {
-                Utils.PrintHeading("Rating based NMF");
-                
-                // Prediction
-                Utils.StartTimer();
-                RatingMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, Config.NMF.MaxEpoch,Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
-                Console.WriteLine("{0,-23} │ {1,18:0.000}s", "Computation time", Utils.StopTimer());
-                
-                // Evaluation
-                Console.WriteLine("{0,-23} │ {1,19:0.0000}" ,"RMSE", RMSE.Evaluate(R_test, R_predicted));
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}", "MAE", MAE.Evaluate(R_test, R_predicted));
-                for (int i = 1; i <= 10; i++)
-                {
-                    Console.WriteLine("{0,-23} │ {1,13:0.0000}", "NCDG@" + i, NCDG.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(R_predicted, i), i));
-                }
-                for (int i = 1; i <= 10; i++)
-                {
-                    Console.WriteLine("{0,-23} │ {1,13:0.0000}", "Precision@" + i, Precision.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(R_predicted, i), i));
-                }
-                Utils.Pause();
-            }
             #endregion
 
             #region Prepare preference relation data
-            Utils.PrintHeading("Prepare preferecen relation data");
             Utils.StartTimer();
+            Utils.PrintHeading("Prepare preferecen relation data");
             PrefRelations PR_train = PrefRelations.CreateDiscrete(R_train);
             PrefRelations PR_test = PrefRelations.CreateDiscrete(R_test);
-            Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
-            List<int> targetUsers = PR_test.Users;
+            Utils.StopTimer();
+            #endregion
 
-            // Note that both preference-based and rating-based methods will be checked against
-            // the relevant items extracted from RATING data sets.
-            // The correct order of recommended items by user
-            //Dictionary<int, List<int>> userRecommendations_truth = new Dictionary<int, List<int>>(targetUsers.Count);
-            //Utilities.StartTimer("Generate truth recommendation lists from PR ... \n");
-            //userRecommendations_truth = PR_test.GetRecommendations(Config.TopN);
-            //Console.WriteLine("completed in {0:0.000}s", Utilities.StopTimer());
+            #region Compute or load similarities
+            DenseMatrix userSimilaritiesOfRating;
+            DenseMatrix userSimilaritiesOfPref;
+            if (Config.RecomputeSimilarity)
+            {
+                Utils.StartTimer();
+                Utils.PrintHeading("Compute user-user similarities from R_train");
+                userSimilaritiesOfRating = Metric.GetPearsonOfRows(R_train);
+                Utils.WriteMatrix(userSimilaritiesOfRating, Config.Ratings.UserSimilaritiesOfRatingFile);
+                Utils.PrintValue("Sum of similarities", userSimilaritiesOfRating.RowSums().Sum().ToString("0.0000"));
+                Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfRating.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.StopTimer();
+
+                Utils.StartTimer();
+                Utils.PrintHeading("Compute user-user similarities from PR_train");
+                userSimilaritiesOfPref = Metric.GetCosineOfPrefRelations(PR_train);
+                Utils.WriteMatrix(userSimilaritiesOfPref, Config.Ratings.UserSimilaritiesOfPrefFile);
+                Utils.PrintValue("Sum of similarities", userSimilaritiesOfPref.RowSums().Sum().ToString("0.0000"));
+                Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfPref.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.StopTimer();
+            }
+            else
+            {
+                Utils.StartTimer();
+                Utils.PrintHeading("Load user-user similarities from R_train");
+                userSimilaritiesOfRating = Utils.ReadDenseMatrix(Config.Ratings.UserSimilaritiesOfRatingFile);
+                Utils.PrintValue("Sum of similarities", userSimilaritiesOfRating.RowSums().Sum().ToString("0.0000"));
+                Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfRating.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.StopTimer();
+
+                Utils.StartTimer();
+                Utils.PrintHeading("Load user-user similarities from PR_train");
+                userSimilaritiesOfPref = Utils.ReadDenseMatrix(Config.Ratings.UserSimilaritiesOfPrefFile);
+                Utils.PrintValue("Sum of similarities", userSimilaritiesOfPref.RowSums().Sum().ToString("0.0000"));
+                Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfPref.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.StopTimer();
+            }
+            R_train.UserSimilarities = userSimilaritiesOfRating;
+            PR_train.UserSimilarities = userSimilaritiesOfPref;
 
             #endregion
 
 
-
-            /*
-
-            SparseMatrix positionMatrix = PR_train.GetPositionMatrix();
-            RatingMatrix tempMatrix = new RatingMatrix(positionMatrix);
-            RatingMatrix myRatingMatrixFromPositions = new RatingMatrix(
-            positionMatrix.Multiply(2.5).Add(tempMatrix.IndexOfNonZeroElements().Matrix.Multiply(2.5))
-            );
-            Console.WriteLine(myRatingMatrixFromPositions.DatasetBrief("Rating matrix from positions"));
-            for (int user = 0; user < R_train.UserCount; user++ )
+            /************************************************************
+             *   Global Mean
+            ************************************************************/
+            #region Run Global Mean
+            if (Config.RunGlobalMean)
             {
-                for(int item = 0 ; item < R_train.ItemCount; item++)
+                // Prediction
+                Utils.PrintHeading("Global Mean");
+                Utils.StartTimer();
+                double globalMean = R_train.GetGlobalMean();
+                RatingMatrix R_predicted = R_unknown.Multiply(globalMean);
+                Utils.StopTimer();
+
+                // Evaluation
+                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+
+                Utils.Pause();
+            }
+            #endregion
+
+
+            /************************************************************
+             *   Rating based UserKNN
+            ************************************************************/
+            #region Run rating based UserKNN
+            if (Config.RunRatingUserKNN)
+            {
+                // Prediction
+                Utils.PrintHeading("Rating based User KNN");
+                Utils.StartTimer();
+                RatingMatrix R_predicted = UserKNN.PredictRatings(R_train, R_unknown, Config.KNN.K);
+                Utils.StopTimer();
+
+                // Evaluation
+                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
                 {
-                    if (positionMatrix[user, item] == 0 && R_train[user, item] != 0)
-                    {
-                        Console.WriteLine("=====positionMatrix[{0},{1}] == {2}", user, item, positionMatrix[user, item]);
-                        Console.WriteLine("=====R_train[{0},{1}] == {2}", user, item, R_train[user, item]);
-                    }
-
-                    if (R_train[user, item] == 0 && positionMatrix[user, item] != 0)
-                    {
-                        Console.WriteLine("******positionMatrix[{0},{1}] == {2}", user, item, positionMatrix[user, item]);
-                        Console.WriteLine("******R_train[{0},{1}] == {2}", user, item, R_train[user, item]);
-                    }
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
                 }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+
+                Utils.Pause();
             }
+            #endregion
 
-
-            // Prediction
-            myRatingMatrixFromPositions.UserSimilarities = Utilities.ReadDenseMatrix(Config.Ratings.UserSimilarityFile);
-            Utilities.StartTimer();
-            RatingMatrix R_predicted2 = UserKNN.PredictRatings(myRatingMatrixFromPositions, 
-                R_unknown, Config.KNN.K);
-            Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utilities.StopTimer());
-
-            // Evaluation
-            Console.WriteLine("{0,-23} │ {1,13:0.0000}", "RMSE", RMSE.Evaluate(R_test, R_predicted2));
-            Console.WriteLine("{0,-23} │ {1,13:0.0000}", "MAE", MAE.Evaluate(R_test, R_predicted2));
-            for (int i = 1; i <= 10; i++)
+            /************************************************************
+             *   Rating based Non-negative Matrix Factorization
+            ************************************************************/
+            #region Run rating based NMF
+            if (Config.RunNMF)
             {
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}",
-                "NCDG@" + i, NCDG.Evaluate(relevantItemsByUser, R_predicted2.GetUserTopNItems(i), i));
+                // Prediction
+                Utils.PrintHeading("Rating based NMF");
+                Utils.StartTimer();
+                RatingMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, Config.NMF.MaxEpoch,
+                    Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
+                Utils.StopTimer();
+
+                // Evaluation
+                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+
+                Utils.Pause();
             }
+            #endregion
 
-            Utilities.Pause();
-
-            */
-
-
-
-
-
-
-
-
-
-
-
+            /************************************************************
+             *   Preference relation based UserKNN
+            ************************************************************/
             #region Run preference relation based UserKNN
             if (Config.RunPreferenceUserKNN)
             {
-                // Compute or load similarities
-                if (true)
-                {
-                    Utils.PrintHeading("Compute Preference Relation based similarities");
-                    Utils.StartTimer();
-                    //PR_train.UserSimilarities = Utilities.ReadDenseMatrix(Config.Ratings.UserSimilarityFile); //TODO: PR_train.UserCosine();
-                    PR_train.UserSimilarities = Metric.GetCosineOfPrefRelations(PR_train);
-                    Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
-                    Utils.WriteMatrix(PR_train.UserSimilarities, "userSimilaritiesPR.csv");
-
-                    Console.WriteLine("Total similarities = " + PR_train.UserSimilarities.RowSums().Sum().ToString("0.0"));
-                    Console.WriteLine("Total abs similarities = " + PR_train.UserSimilarities.RowAbsoluteSums().Sum().ToString("0.0"));
-                    Utils.PrintHeading("Preference Relation based User KNN");
-                }
-                else
-                {
-                    Utils.PrintHeading("Preference Relation based User KNN");
-                    Console.Write("Load user-user similarities ... ");
-                    PR_train.UserSimilarities = Utils.ReadDenseMatrix("userSimilaritiesPR.csv");
-                    Console.WriteLine("completed.");
-                }
-                
                 // Prediction
+                Utils.PrintHeading("Preference relation based UserKNN");
                 Utils.StartTimer();
                 RatingMatrix PR_predicted = PrefUserKNN.PredictRatings(PR_train, R_unknown, Config.KNN.K);
-               Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
-
-               // Evaluation
-               for (int i = 1; i <= 10; i++)
-               {
-                   Console.WriteLine("{0,-23} │ {1,13:0.0000}", "NCDG@" + i,
-                       NCDG.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(PR_predicted, i), i));
-               }
-
-               // Evaluation
-               for (int i = 1; i <= 10; i++)
-               {
-                   Console.WriteLine("{0,-23} │ {1,13:0.0000}", "Precision@" + i,
-                       Precision.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(PR_predicted, i), i));
-               }
-                //Console.WriteLine("{0,-23} │ {1,13:0.0000}" ,
-                //   "Precision@" + Config.TopN,
-                //   RecSys.MAP.AveragePrecisionAtN(relevantItemsByUser, userRecommendations_predicted, Config.TopN));
-                Utils.Pause();
-            }
-            #endregion
-
-
-            #region Run rating based UserKNN with PR similarities
-            if (Config.RunRatingUserKNN)
-            {
-                Utils.PrintHeading("Rating based User KNN with PR similarities");
-                    R_train.UserSimilarities = Utils.ReadDenseMatrix("userSimilaritiesPR.csv");
-
-                // Prediction
-                Utils.StartTimer();
-                RatingMatrix R_predicted = UserKNN.PredictRatings(R_train, R_unknown, Config.KNN.K);
-                Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
+                Utils.StopTimer();
 
                 // Evaluation
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}", "RMSE", RMSE.Evaluate(R_test, R_predicted));
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}", "MAE", MAE.Evaluate(R_test, R_predicted));
-                for (int i = 1; i <= 10; i++)
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(PR_predicted, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
                 {
-                    Console.WriteLine("{0,-23} │ {1,13:0.0000}",
-                    "NCDG@" + i, NCDG.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(R_predicted, i), i));
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
                 }
-                for (int i = 1; i <= 10; i++)
+                for (int n = 1; n <= Config.TopN; n++)
                 {
-                    Console.WriteLine("{0,-23} │ {1,13:0.0000}",
-                    "Precision@" + i, Precision.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(R_predicted, i), i));
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
                 }
 
-                Utils.Pause();
-            }
-            #endregion
-
-            #region Run rating based UserKNN with PR similarities and positions
-            if (Config.RunRatingUserKNN)
-            {
-                Utils.PrintHeading("Rating based User KNN with PR similarities and positions");
-
-                SparseMatrix positionMatrix = PR_train.GetPositionMatrix();
-                RatingMatrix tempMatrix = new RatingMatrix(positionMatrix);
-                RatingMatrix ratingMatrixFromPositions = new RatingMatrix(
-                positionMatrix.Multiply(2.5).Add(tempMatrix.IndexesOfNonZeroElements().Matrix.Multiply(2.5))
-                );
-                Console.WriteLine(ratingMatrixFromPositions.DatasetBrief("Rating matrix from positions"));
-
-                ratingMatrixFromPositions.UserSimilarities = Utils.ReadDenseMatrix("userSimilaritiesPR.csv");
-
-                // Prediction
-                Utils.StartTimer();
-                RatingMatrix R_predicted = UserKNN.PredictRatings(ratingMatrixFromPositions, R_unknown, Config.KNN.K);
-                Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
-
-                // Evaluation
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}", "RMSE", RMSE.Evaluate(R_test, R_predicted));
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}", "MAE", MAE.Evaluate(R_test, R_predicted));
-                for (int i = 1; i <= 10; i++)
-                {
-                    Console.WriteLine("{0,-23} │ {1,13:0.0000}",
-                    "NCDG@" + i, NCDG.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(R_predicted, i), i));
-                }
-                for (int i = 1; i <= 10; i++)
-                {
-                    Console.WriteLine("{0,-23} │ {1,13:0.0000}",
-                    "Precision@" + i, Precision.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(R_predicted, i), i));
-                }
-
-                Utils.Pause();
-            }
-            #endregion
-
-            #region Run rating based NMF with positions
-            if (Config.RunNMF)
-            {
-                Utils.PrintHeading("Rating based NMF with positions");
-
-                SparseMatrix positionMatrix = PR_train.GetPositionMatrix();
-                RatingMatrix tempMatrix = new RatingMatrix(positionMatrix);
-                RatingMatrix ratingMatrixFromPositions = new RatingMatrix(
-                positionMatrix.Multiply(2.5).Add(tempMatrix.IndexesOfNonZeroElements().Matrix.Multiply(2.5))
-                );
-                Console.WriteLine(ratingMatrixFromPositions.DatasetBrief("Rating matrix from positions"));
-
-                // Prediction
-                Utils.StartTimer();
-                RatingMatrix R_predicted = NMF.PredictRatings(ratingMatrixFromPositions, R_unknown, Config.NMF.MaxEpoch, Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
-                Console.WriteLine("{0,-23} │ {1,18:0.000}s", "Computation time", Utils.StopTimer());
-
-                // Evaluation
-                Console.WriteLine("{0,-23} │ {1,19:0.0000}", "RMSE", RMSE.Evaluate(R_test, R_predicted));
-                Console.WriteLine("{0,-23} │ {1,13:0.0000}", "MAE", MAE.Evaluate(R_test, R_predicted));
-                for (int i = 1; i <= 10; i++)
-                {
-                    Console.WriteLine("{0,-23} │ {1,13:0.0000}", "NCDG@" + i, NCDG.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(R_predicted, i), i));
-                }
-                for (int i = 1; i <= 10; i++)
-                {
-                    Console.WriteLine("{0,-23} │ {1,13:0.0000}", "Precision@" + i, Precision.Evaluate(relevantItemsByUser, ItemRecommendationCore.GetTopNItemsByUser(R_predicted, i), i));
-                }
                 Utils.Pause();
             }
             #endregion

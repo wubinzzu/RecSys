@@ -19,7 +19,7 @@ namespace RecSys.Ordinal
     /// </summary>
     public static class PrefUserKNN
     {
-        public static RatingMatrix PredictRatings(PrefRelations PR_train, 
+        public static RatingMatrix PredictRatings(PrefRelations PR_train,
             RatingMatrix R_unknown, int K)
         {
             Debug.Assert(PR_train.UserCount == R_unknown.UserCount);
@@ -27,7 +27,7 @@ namespace RecSys.Ordinal
 
             // This matrix stores predictions
             RatingMatrix R_predicted = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
-            
+
             // This can be considered as the R_train in standard UserKNN
             SparseMatrix positionMatrix = PR_train.GetPositionMatrix();
             RatingMatrix ratingMatrixFromPositions = new RatingMatrix(positionMatrix);
@@ -36,12 +36,10 @@ namespace RecSys.Ordinal
             Vector<double> meanByItem = ratingMatrixFromPositions.GetItemMeans();
             double globalMean = ratingMatrixFromPositions.GetGlobalMean();
 
-            // Predict missing positions of each user
-            //Object lockMe = new Object();
-            //Parallel.ForEach(R_unknown.Users, user =>
-            //{
-                foreach (Tuple<int, Vector<double>> user in R_unknown.Users)
-                {
+            // Predict positions for each test user
+            // Appears to be very fast, parallel.foreach is unnecessary
+            foreach (Tuple<int, Vector<double>> user in R_unknown.Users)
+            {
                 int indexOfUser = user.Item1;
                 Vector<double> indexesOfUnknownRatings = user.Item2;
 

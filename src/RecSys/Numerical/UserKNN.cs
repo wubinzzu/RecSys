@@ -39,7 +39,8 @@ namespace RecSys.Numerical
             Vector<double> meanByUser = R_train.GetUserMeans();
             Vector<double> meanByItem = R_train.GetItemMeans();
 
-            // Predict missing ratings of each user
+            // Predict ratings for each test user
+            // Single thread appears to be very fast, parallel.foreach is unnecessary
             Object lockMe = new Object();
             Parallel.ForEach(R_unknown.Users, user =>
             {

@@ -202,6 +202,12 @@ namespace RecSys
             return formatedTitle;
         }
 
+        public static void PrintValue(string label, string value)
+        {
+            Console.WriteLine("{0} │ {1}", label.PadRight(Config.RightPad, ' '),
+                value.PadLeft(Config.LeftPad, ' '));
+        }
+
         public static void PrintHeading(string title)
         {
             Console.Write(CreateHeading(title));
@@ -230,10 +236,12 @@ namespace RecSys
             stopwatch = Stopwatch.StartNew();
         }
 
-        public static double StopTimer()
+        public static void StopTimer()
         {
             stopwatch.Stop();
-            return stopwatch.Elapsed.TotalMilliseconds / 1000;
+            double seconds = stopwatch.Elapsed.TotalMilliseconds / 1000;
+            Console.WriteLine("{0} │ {1}s", "Computation time".PadRight(Config.RightPad, ' '),
+                seconds.ToString("0.000").PadLeft(Config.LeftPad - 1, ' '));
         }
 
         public static void Pause()

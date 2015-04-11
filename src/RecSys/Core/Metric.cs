@@ -153,6 +153,7 @@ namespace RecSys.Core
             // should we count zeros in the vectors or not?
             // Why it is not Distance-1????!!
             return 1 - Distance.Pearson(R.GetRow(a), R.GetRow(b));
+            //return 1 - Distance.Pearson(R.Matrix.Row(a), R.Matrix.Row(b));
         }
         #endregion
 
