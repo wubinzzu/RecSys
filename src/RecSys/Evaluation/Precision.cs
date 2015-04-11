@@ -2,6 +2,11 @@
 
 namespace RecSys
 {
+    /// <summary>
+    /// Many papers used Precision@N metric but in different ways.
+    /// This class provides a very naive implementation,
+    /// try use the NDCG instead.
+    /// </summary>
     public static class Precision
     {
         public static double Evaluate(Dictionary<int, List<int>> correctLists,

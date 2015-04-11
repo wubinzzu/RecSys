@@ -4,13 +4,17 @@ using System.Diagnostics;
 
 namespace RecSys.Evaluation
 {
+    /// <summary>
+    /// Root-Mean-Square Error.
+    /// See https://www.kaggle.com/wiki/RootMeanSquaredError
+    /// </summary>
     public class RMSE
     {
-        public static double Evaluate(RatingMatrix correctRatingMatrix, RatingMatrix predictedRatingMatrix)
+        public static double Evaluate(RatingMatrix correctMatrix, RatingMatrix predictedMatrix)
         {
-            Debug.Assert(correctRatingMatrix.NonZerosCount == predictedRatingMatrix.NonZerosCount);
-            double enumerator = (predictedRatingMatrix.Matrix - correctRatingMatrix.Matrix).FrobeniusNorm();
-            return enumerator / Math.Sqrt(correctRatingMatrix.Matrix.NonZerosCount);
+            Debug.Assert(correctMatrix.NonZerosCount == predictedMatrix.NonZerosCount);
+            double enumerator = (predictedMatrix.Matrix - correctMatrix.Matrix).FrobeniusNorm();
+            return enumerator / Math.Sqrt(correctMatrix.Matrix.NonZerosCount);
         }
     }
 }

@@ -1,0 +1,14 @@
+This file describes the naming conventions used across the project.
+
+1. Class names are in CamelCase form.
+2. Method names are in CamelCase form, prefer to be VerbNoun 
+where Verb can be "Get", "Compute", "Sort" etc. Noun can be 
+the name of the output.
+3. Variables are in the lowerCamelCase form.
+3.1 Dictionary should be named like "valueByKey"
+3.2 List should be named like "itemsOfUser" if it is a set of items for one user
+and "itemByUser" if the list index refers to index of user.
+3.3 Single value variable should be named like "indexOfUser", "ratingOfUser",
+where the first word describe the type/meaning of the value, 
+and the second word distinguishes this variable from other variables with the same
+type/meaning.

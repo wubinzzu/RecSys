@@ -64,7 +64,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="SolutionFiles\packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\RecSys\RecSys.csproj">

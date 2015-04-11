@@ -13,6 +13,7 @@ namespace RecSys.Numerical
 {
     public static class UserKNN
     {
+
         #region UserKNN
         /// <summary>
         /// The user-based KNN collaborative filtering described in paper: 
@@ -35,22 +36,24 @@ namespace RecSys.Numerical
 
             // Basic statistics from train set
             double globalMean = R_train.GetGlobalMean();
-            Vector<double> userMeans = R_train.GetUserMeans();
-            Vector<double> itemMeans = R_train.GetItemMeans();
+            Vector<double> meanByUser = R_train.GetUserMeans();
+            Vector<double> meanByItem = R_train.GetItemMeans();
 
-            foreach (Tuple<int, Vector<double>> user in R_unknown.Users)
+            // Predict missing ratings of each user
+            Object lockMe = new Object();
+            Parallel.ForEach(R_unknown.Users, user =>
             {
-                int userIndex = user.Item1;
-                RatingVector userRatings = new RatingVector(R_train.GetRow(userIndex));
+                int indexOfUser = user.Item1;
+                RatingVector userRatings = new RatingVector(R_train.GetRow(indexOfUser));
                 RatingVector unknownRatings = new RatingVector(user.Item2);
 
-                Utils.PrintEpoch("Predicting user/total", userIndex, R_train.UserCount);
+                Utils.PrintEpoch("Predicting user/total", indexOfUser, R_train.UserCount);
 
-                Dictionary<int, double> topKNeighbors = KNNCore.GetTopKNeighborsByUser(R_train.UserSimilarities, userIndex, K);
+                Dictionary<int, double> topKNeighbors = KNNCore.GetTopKNeighborsByUser(R_train.UserSimilarities, indexOfUser, K);
 
-                double userMean = userMeans[userIndex];
+                double meanOfUser = meanByUser[indexOfUser];
 
-                // Loop through each item to be predicted
+                // Loop through each ratingto be predicted
                 foreach (Tuple<int, double> unknownRating in unknownRatings.Ratings)
                 {
                     int itemIndex = unknownRating.Item1;
@@ -64,21 +67,20 @@ namespace RecSys.Numerical
                     foreach (KeyValuePair<int, double> neighbor in topKNeighbors)
                     {
                         int neighborIndex = neighbor.Key;
-                        double neighborSimilarity = neighbor.Value;
-                        double neighborRating = R_train[neighborIndex, itemIndex];
-                        if (neighborRating != 0)
+                        double similarityOfNeighbor = neighbor.Value;
+                        double itemRatingOfNeighbor = R_train[neighborIndex, itemIndex];
+
+                        // We count only if the neighbor has seen this item before
+                        if (itemRatingOfNeighbor != 0)
                         {
-                            // The weightSum serves as the normalization term
-                            // it needs abs() because some metric such as Pearson 
-                            // may produce negative weights
-                            weightSum += neighborSimilarity;
-                            weightedSum += (neighborRating - userMeans[neighborIndex]) * neighborSimilarity;
+                            weightSum += similarityOfNeighbor;
+                            weightedSum += (itemRatingOfNeighbor - meanByUser[neighborIndex]) * similarityOfNeighbor;
                         }
                     }
                     // A zero weightedSum means this is a cold item and global mean will be assigned by default
                     if (weightedSum != 0)
                     {
-                        prediction = userMean + weightedSum / weightSum;
+                        prediction = meanOfUser + weightedSum / weightSum;
                     }
                     else
                     {
@@ -98,9 +100,12 @@ namespace RecSys.Numerical
                         prediction = Config.Ratings.MinRating;
                     }
 
-                    R_predicted[userIndex, itemIndex] = prediction;
+                    lock (lockMe)
+                    {
+                        R_predicted[indexOfUser, itemIndex] = prediction;
+                    }
                 }
-            }
+            });
             Console.WriteLine("{0,-23} │ {1,13}", "# capped predictions", cappedCount);
             Console.WriteLine("{0,-23} │ {1,13}", "# default predictions", globalMeanCount);
             return R_predicted;

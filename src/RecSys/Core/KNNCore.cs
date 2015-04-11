@@ -8,6 +8,9 @@ using System.Linq;
 
 namespace RecSys.Core
 {
+    /// <summary>
+    /// This class implements core functions for KNN-like algorithms.
+    /// </summary>
     public static class KNNCore
     {
         #region GetTopKNeighborsByUser
@@ -29,13 +32,13 @@ namespace RecSys.Core
             // They will be sorted soon
             List<double> similaritiesOfNeighborsSortedBySimilarity = similaritiesByUser.Row(indexOfTargetUser).ToList();
             List<int> indexesOfNeighborsSortedBySimilarity = Enumerable.Range(0, similaritiesOfNeighborsSortedBySimilarity.Count).ToList();
-            
+
             // To exclute the target user himself from neighbors
-            similaritiesOfNeighborsSortedBySimilarity[indexOfTargetUser] = double.MinValue; 
+            similaritiesOfNeighborsSortedBySimilarity[indexOfTargetUser] = double.MinValue;
 
             // Sort the neighbors' indexes according to their similarities to the target user
             Sorting.Sort<double, int>(similaritiesOfNeighborsSortedBySimilarity, indexesOfNeighborsSortedBySimilarity);
-            
+
             // Make it descending order by similarity
             similaritiesOfNeighborsSortedBySimilarity.Reverse();
             indexesOfNeighborsSortedBySimilarity.Reverse();
@@ -46,7 +49,7 @@ namespace RecSys.Core
                 // indexesOfNeighborsSortedBySimilarity[0] will give 
                 // the index (in similaritiesByUser) of the most similar neighbor
                 // and i is the index in the sorted similaritiesOfNeighbors 
-                similaritiesByTopKUser[indexesOfNeighborsSortedBySimilarity[i]] = similaritiesOfNeighborsSortedBySimilarity[i];   
+                similaritiesByTopKUser[indexesOfNeighborsSortedBySimilarity[i]] = similaritiesOfNeighborsSortedBySimilarity[i];
             }
 
             return similaritiesByTopKUser;

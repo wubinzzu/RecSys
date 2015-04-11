@@ -9,6 +9,7 @@ using MathNet.Numerics;
 using MathNet.Numerics.Providers.LinearAlgebra.Mkl;
 using MathNet.Numerics.LinearAlgebra.Double;
 using MathNet.Numerics.Data.Text;
+using MathNet.Numerics.LinearAlgebra;
 
 namespace RecSys
 {
@@ -16,6 +17,9 @@ namespace RecSys
     {
         static void Main(string[] args)
         {
+            // Enable multi-threading for Math.Net
+            Control.UseMultiThreading();
+
             #region Prepare rating data
             Utils.PrintHeading("Prepare rating data");
             Utils.StartTimer();
@@ -62,7 +66,7 @@ namespace RecSys
                 {
                     Console.WriteLine("Compute user-user similarities ... ");
                     Utils.StartTimer();
-                    R_train.UserSimilarities = R_train.UserPearson();
+                    R_train.UserSimilarities = Metric.GetPearsonOfRows(R_train);
                     Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
                     Utils.WriteMatrix(R_train.UserSimilarities, Config.Ratings.UserSimilarityFile);
 
@@ -127,8 +131,8 @@ namespace RecSys
             #region Prepare preference relation data
             Utils.PrintHeading("Prepare preferecen relation data");
             Utils.StartTimer();
-            PreferenceRelations PR_train = PreferenceRelations.CreateDiscrete(R_train);
-            PreferenceRelations PR_test = PreferenceRelations.CreateDiscrete(R_test);
+            PrefRelations PR_train = PrefRelations.CreateDiscrete(R_train);
+            PrefRelations PR_test = PrefRelations.CreateDiscrete(R_test);
             Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
             List<int> targetUsers = PR_test.Users;
 
@@ -210,7 +214,7 @@ namespace RecSys
                     Utils.PrintHeading("Compute Preference Relation based similarities");
                     Utils.StartTimer();
                     //PR_train.UserSimilarities = Utilities.ReadDenseMatrix(Config.Ratings.UserSimilarityFile); //TODO: PR_train.UserCosine();
-                    PR_train.UserSimilarities = PR_train.UserCosine();
+                    PR_train.UserSimilarities = Metric.GetCosineOfPrefRelations(PR_train);
                     Console.WriteLine("{0,-23} │ {1,12:0.000}s", "Computation time", Utils.StopTimer());
                     Utils.WriteMatrix(PR_train.UserSimilarities, "userSimilaritiesPR.csv");
 

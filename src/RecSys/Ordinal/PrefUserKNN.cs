@@ -12,12 +12,16 @@ using RecSys.Numerical;
 
 namespace RecSys.Ordinal
 {
+    /// <summary>
+    /// Implementation of the PrefUserKNN algorithm described in:
+    /// Brun, A., Hamad, A., Buffet, O., & Boyer, A. (2010). 
+    /// Towards preference relations in recommender systems. Workshop in ECML-PKDD.
+    /// </summary>
     public static class PrefUserKNN
     {
-        public static RatingMatrix PredictRatings(PreferenceRelations PR_train, 
+        public static RatingMatrix PredictRatings(PrefRelations PR_train, 
             RatingMatrix R_unknown, int K)
         {
-            // Debug
             Debug.Assert(PR_train.UserCount == R_unknown.UserCount);
             Debug.Assert(PR_train.ItemCount == R_unknown.ItemCount);
 
@@ -27,28 +31,27 @@ namespace RecSys.Ordinal
             // This can be considered as the R_train in standard UserKNN
             SparseMatrix positionMatrix = PR_train.GetPositionMatrix();
             RatingMatrix ratingMatrixFromPositions = new RatingMatrix(positionMatrix);
-            //RatingMatrix tempMatrix = new RatingMatrix(positionMatrix);
-            //RatingMatrix ratingMatrixFromPositions = new RatingMatrix(
-            //positionMatrix.Multiply(2.5).Add(tempMatrix.IndexOfNonZeroElements().Matrix.Multiply(2.5))
-            //);
 
-            //RatingMatrix positionMatrixCopy = ratingMatrixFromPositions;// new RatingMatrix(ratingMatrixFromPositions);
-            Vector<double> userMeans = ratingMatrixFromPositions.GetUserMeans();
-            Vector<double> itemMeans = ratingMatrixFromPositions.GetItemMeans();
+            Vector<double> meanByUser = ratingMatrixFromPositions.GetUserMeans();
+            Vector<double> meanByItem = ratingMatrixFromPositions.GetItemMeans();
             double globalMean = ratingMatrixFromPositions.GetGlobalMean();
 
-            foreach (Tuple<int, Vector<double>> user in R_unknown.Users)
-            {
+            // Predict missing positions of each user
+            //Object lockMe = new Object();
+            //Parallel.ForEach(R_unknown.Users, user =>
+            //{
+                foreach (Tuple<int, Vector<double>> user in R_unknown.Users)
+                {
                 int indexOfUser = user.Item1;
                 Vector<double> indexesOfUnknownRatings = user.Item2;
 
                 Utils.PrintEpoch("Predicting user/total", indexOfUser, PR_train.UserCount);
-                Dictionary<int, double> topKNeighbors = 
-                    KNNCore.GetTopKNeighborsByUser(PR_train.UserSimilarities, indexOfUser, K);
 
-                double userMean = userMeans[indexOfUser];
+                Dictionary<int, double> topKNeighbors = KNNCore.GetTopKNeighborsByUser(PR_train.UserSimilarities, indexOfUser, K);
 
-                // Loop through each rating to be predicted
+                double meanOfUser = meanByUser[indexOfUser];
+
+                // Loop through each position to be predicted
                 foreach (Tuple<int, double> unknownRating in indexesOfUnknownRatings.EnumerateIndexed(Zeros.AllowSkip))
                 {
                     int indexOfUnknownItem = unknownRating.Item1;
@@ -64,17 +67,17 @@ namespace RecSys.Ordinal
                         double similarityOfNeighbor = neighbor.Value;
                         double itemPositionOfNeighbor = ratingMatrixFromPositions[indexOfNeighbor, indexOfUnknownItem];
 
-                        // We count only if the  neighbor has seend this item before
+                        // We count only if the neighbor has seen this item before
                         if (itemPositionOfNeighbor != 0)
                         {
                             // Recall that we use a small constant to hold 0
                             // we revert it back here
-                            if (itemPositionOfNeighbor==Config.ZeroInSparseMatrix)
+                            if (itemPositionOfNeighbor == Config.ZeroInSparseMatrix)
                             {
                                 itemPositionOfNeighbor = 0;
                             }
                             weightSum += similarityOfNeighbor;
-                            weightedSum += (itemPositionOfNeighbor - userMeans[indexOfNeighbor]) * similarityOfNeighbor;
+                            weightedSum += (itemPositionOfNeighbor - meanByUser[indexOfNeighbor]) * similarityOfNeighbor;
                             itemSeenCount++;
                         }
                     }
@@ -83,20 +86,19 @@ namespace RecSys.Ordinal
                     if (itemSeenCount != 0)
                     {
                         // TODO: Add user mean may improve the performance
-                        R_predicted[indexOfUser, indexOfUnknownItem] = userMean + weightedSum / weightSum;
+                        R_predicted[indexOfUser, indexOfUnknownItem] = meanOfUser + weightedSum / weightSum;
                     }
                     else
                     {
                         R_predicted[indexOfUser, indexOfUnknownItem] = globalMean;
                     }
                 }
-            }
+            }//);
             return R_predicted;
         }
 
-
         #region PrefUserKNN
-        public static Dictionary<int, List<int>> RecommendTopN(PreferenceRelations PR_train, int K, List<int> targetUsers, int topN)
+        public static Dictionary<int, List<int>> RecommendTopN(PrefRelations PR_train, int K, List<int> targetUsers, int topN)
         {
             Dictionary<int, List<int>> topNItemsByUser = new Dictionary<int, List<int>>(targetUsers.Count);
 

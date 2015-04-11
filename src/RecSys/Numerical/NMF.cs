@@ -1,15 +1,18 @@
-﻿using System;
-using System.Diagnostics;
-using MathNet.Numerics.Distributions;
-using MathNet.Numerics.LinearAlgebra.Double;
+﻿using MathNet.Numerics.LinearAlgebra.Double;
 using RecSys.Numerical;
+using System;
 
 namespace RecSys
 {
+    /// <summary>
+    /// The Non-negative Matrix Factorization
+    /// See Lee, D. D., & Seung, H. S. (2001). Algorithms for non-negative matrix factorization. NIPS.
+    /// and Koren, Y., Bell, R., & Volinsky, C. (2009). Matrix factorization techniques for recommender systems. Computer.
+    /// </summary>
     public class NMF
     {
-        public static RatingMatrix PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown, 
-            int maxEpoch,double learnRate, double regularization, int factorCount)
+        public static RatingMatrix PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown,
+            int maxEpoch, double learnRate, double regularization, int factorCount)
         {
             int userCount = R_train.UserCount;
             int itemCount = R_train.ItemCount;
@@ -18,7 +21,7 @@ namespace RecSys
             // User latent vectors with default seed
             DenseMatrix P = Utils.CreateRandomDenseMatrix(userCount, factorCount, Config.Seed);
             // Item latent vectors with a different seed
-            DenseMatrix Q = Utils.CreateRandomDenseMatrix(factorCount, itemCount, Config.Seed + 1); 
+            DenseMatrix Q = Utils.CreateRandomDenseMatrix(factorCount, itemCount, Config.Seed + 1);
 
             // SGD
             for (int epoch = 0; epoch < maxEpoch; ++epoch)
@@ -44,8 +47,7 @@ namespace RecSys
                     }
                 }
 
-                // After some iteractions, 
-                // compute the current regularized error see if it converges
+                // Display the current regularized error see if it converges
                 double e_prev = double.MaxValue;
                 double e_curr = 0;
                 if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)

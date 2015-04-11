@@ -7,12 +7,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
 
 namespace RecSys
 {
     /// <summary>
-    /// 
+    /// This class implements core functions shared by differnet algorithms.
+    /// Including read/write files, printing messages, timer, etc.
     /// </summary>
     /// <remarks>
     /// 1. For SparseMatrix, all entries are initialized to ZERO, when we read it, it will be a value 0. The NonZeroCount would be 0.
@@ -21,7 +21,7 @@ namespace RecSys
     /// </remarks>
     public class Utils
     {
-        private static Stopwatch stopwatch;
+        #region Data IO
 
         #region Load movielens dataset into SparseMatrix
         /// <summary>
@@ -144,18 +144,43 @@ namespace RecSys
         }
         #endregion
 
+        /// <summary>
+        /// Write a matrix (sparse or dense) to a comma separated file.
+        /// </summary>
+        /// <param name="matrix">The matrix to be written.</param>
+        /// <param name="path">Path of output file.</param>
         public static void WriteMatrix(Matrix matrix, string path)
         {
             DelimitedWriter.Write(path, matrix, ",");
         }
+
+        /// <summary>
+        /// Read a desen matrix from file. 0 values are stored.
+        /// </summary>
+        /// <param name="path">Path of input file.</param>
+        /// <returns>A DenseMatrix.</returns>
         public static DenseMatrix ReadDenseMatrix(string path)
         {
             return DenseMatrix.OfMatrix(DelimitedReader.Read<double>(path, false, ",", false));
         }
+
+        /// <summary>
+        /// Read a sparse matrix from file. 0 values are ignored.
+        /// </summary>
+        /// <param name="path">Path of input file.</param>
+        /// <returns>A SparseMatrix.</returns>
         public static SparseMatrix ReadSparseMatrix(string path)
         {
             return SparseMatrix.OfMatrix(DelimitedReader.Read<double>(path, false, ",", false));
         }
+
+        /// <summary>
+        /// Create a DenseMatrix filled with random numbers from [0,1], uniformly distributed.
+        /// </summary>
+        /// <param name="rowCount">Number of rows.</param>
+        /// <param name="columnCount">Number of columns.</param>
+        /// <param name="seed">Random seed.</param>
+        /// <returns>A DenseMatrix filled with random numbers from [0,1].</returns>
         public static DenseMatrix CreateRandomDenseMatrix(int rowCount, int columnCount, int seed = Config.Seed)
         {
             ContinuousUniform uniformDistribution = new ContinuousUniform(0, 1, new Random(Config.Seed));
@@ -165,7 +190,9 @@ namespace RecSys
 
             return randomMatrix;
         }
+        #endregion
 
+        #region String formatting and printing
         public static string CreateHeading(string title)
         {
             string formatedTitle = "";
@@ -180,14 +207,6 @@ namespace RecSys
             Console.Write(CreateHeading(title));
         }
 
-        public static void Pause()
-        {
-            Console.WriteLine("\nPress any key to continue...");
-            Console.ReadKey();
-            Console.SetCursorPosition(0, Console.CursorTop - 2);
-            Console.Write(new String(' ', Console.BufferWidth));
-        }
-
         public static void PrintEpoch(string label, int epoch, int maxEpoch)
         {
             if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
@@ -199,22 +218,32 @@ namespace RecSys
         {
             if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
             {
-                Console.WriteLine("{0,-23} │ {1,8} │ {2,8:0.000}", label1 + "-" + label2, (epoch + 1) + "/" + maxEpoch, error);
-
+                Console.WriteLine("{0,-23} │ {1,13}", label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", label2 + " = " + error.ToString("0.0000"));
             }
         }
+        #endregion
 
+        #region Timer & Excution control
+        private static Stopwatch stopwatch;
         public static void StartTimer()
         {
             stopwatch = Stopwatch.StartNew();
         }
+
         public static double StopTimer()
         {
             stopwatch.Stop();
             return stopwatch.Elapsed.TotalMilliseconds / 1000;
         }
 
-
+        public static void Pause()
+        {
+            Console.WriteLine("\nPress any key to continue...");
+            Console.ReadKey();
+            Console.SetCursorPosition(0, Console.CursorTop - 2);
+            Console.Write(new String(' ', Console.BufferWidth));
+        }
+        #endregion
 
         #region Obsolete
         [Obsolete("LoadMovieLens(string path) is deprecated.")]
@@ -255,6 +284,7 @@ namespace RecSys
         #endregion
     }
 
+    #region Extension to shuffle IList collections
     static class ExtensionsToDotNet
     {
         /// <summary>
@@ -277,4 +307,5 @@ namespace RecSys
             }
         }
     }
+    #endregion
 }

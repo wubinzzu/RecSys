@@ -13,7 +13,7 @@ namespace RecSys.Core
     public class ItemRecommendationCore
     {
         #region GetTopNItemsByUser
-        
+
         /// <summary>
         /// Get the top N items of each user.
         /// The selection is based on the values stored in the matrix,
@@ -51,8 +51,8 @@ namespace RecSys.Core
                 // in the future, implement the following:
                 //for (int i = 0; i < topN; ++i)
                 //{
-                    // ratingsOfItemsSortedByRating[i] is the rating of the ith item in topN list
-                    // indexesOfItemsSortedByRating[i] is the index (in the R) of the ith item in topN list
+                // ratingsOfItemsSortedByRating[i] is the rating of the ith item in topN list
+                // indexesOfItemsSortedByRating[i] is the index (in the R) of the ith item in topN list
                 //}
             }
 

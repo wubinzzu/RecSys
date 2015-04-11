@@ -1,0 +1,14 @@
+This file desribes the tricks and traps in the project.
+
+1. When you have an empty SparseMatrix A and set one value to 0  A[0,0] = 0;
+then the A.NonZeroCount = 1, i.e. the 0 value you set is different from the zero values in the sparse matrix.
+However, when you use SparseMatrix.OfMatrix(), it will create a new copy of SparseMatrix where all zeros,
+both the empty zeros and real 0 you set will be considered as empty zero and will be ignored in the created sparse matrix.
+
+2. To prevent the erasing of our real 0 values, the constant Config.ZeroInSparseMatrix is used to hold the place
+for these real 0 values and convert back to real 0 values when use.
+
+3. Arithmetics operators have higher precedence than Conditional ?: operator
+
+4. When to use Parallel ForEach and For: when each loop does a lot of work (to hide the threading overheads)
+and access critical resources at the end of the loop, e.g. store the final result into a shared variable.

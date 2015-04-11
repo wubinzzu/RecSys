@@ -72,17 +72,20 @@
     <Compile Include="Evaluation\RMSE.cs" />
     <Compile Include="Numerical\RatingMatrix.cs" />
     <Compile Include="Numerical\RatingVector.cs" />
-    <Compile Include="Ordinal\PreferenceRelations.cs" />
+    <Compile Include="Ordinal\PrefRelations.cs" />
     <Compile Include="Numerical\UserKNN.cs" />
     <Compile Include="Numerical\NMF.cs" />
     <Compile Include="Ordinal\PrefUserKNN.cs" />
     <Compile Include="Evaluation\Precision.cs" />
-    <Compile Include="Core\Utilities.cs" />
+    <Compile Include="Core\Utils.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <None Include="SolutionFiles\packages.config">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="SolutionFiles\App.config" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.5">

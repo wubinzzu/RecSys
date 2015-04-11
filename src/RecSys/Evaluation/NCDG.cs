@@ -5,8 +5,25 @@ using System.Linq;
 
 namespace RecSys.Evaluation
 {
-    class NCDG
+    /// <summary>
+    /// Normalized Discounted Cumulative Gain
+    /// See https://www.kaggle.com/wiki/NormalizedDiscountedCumulativeGain
+    /// and here for application in RecSys:
+    /// Weimer, M., Karatzoglou, A., Le, Q. V., & Smola, A. (2007). 
+    /// Maximum margin matrix factorization for collaborative ranking. NIPS.
+    /// </summary>
+    public class NCDG
     {
+        /// <summary>
+        /// Compute the NCDG for pairs of lists, applies to ranking lists.
+        /// </summary>
+        /// <param name="correctLists">Each Key is a user and Value is the unordered 
+        /// set of relevant items of this user.</param>
+        /// <param name="predictedLists">Each Key is a user and Value is an ordered  
+        /// (descending) list of predicted items for this user.</param>
+        /// <param name="topN">Only the topN items in the predictedList will be evaluated.</param>
+        /// <returns>The NDCG result in [0,1] the higher the better.</returns>
+        /// <remarks>Users with less than topN relevant items will be excluded from calculations.</remarks>
         public static double Evaluate(Dictionary<int, List<int>> correctLists,
             Dictionary<int, List<int>> predictedLists, int topN)
         {

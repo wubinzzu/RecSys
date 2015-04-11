@@ -99,7 +99,7 @@ namespace RecSysUnitTest
                 RatingMatrix R = GetSampleRatingMatrix();
 
                 // act
-                PreferenceRelations PR = PreferenceRelations.CreateDiscrete(R);
+                PrefRelations PR = PrefRelations.CreateDiscrete(R);
 
                 // assert
                 foreach (KeyValuePair<int, SparseMatrix> user in PR.GetAllPreferenceRelations)
@@ -220,7 +220,7 @@ namespace RecSysUnitTest
                  * 0  1  5  4
                  */
                 RatingMatrix R = GetSampleRatingMatrix();
-                PreferenceRelations PR = PreferenceRelations.CreateDiscrete(R);
+                PrefRelations PR = PrefRelations.CreateDiscrete(R);
 
                 // act
                 // Convert first, Third, and last users' preferences to positions
@@ -273,7 +273,7 @@ namespace RecSysUnitTest
                  * 0  1  5  4
                  */
                 RatingMatrix R = GetSampleRatingMatrix();
-                PreferenceRelations PR = PreferenceRelations.CreateDiscrete(R);
+                PrefRelations PR = PrefRelations.CreateDiscrete(R);
 
                 // act
                 SparseMatrix positionMatrix = PR.GetPositionMatrix();
@@ -307,7 +307,7 @@ namespace RecSysUnitTest
                  * 0  1  5  4
                  */
                 RatingMatrix R = GetSampleRatingMatrix();
-                PreferenceRelations PR = PreferenceRelations.CreateDiscrete(R);
+                PrefRelations PR = PrefRelations.CreateDiscrete(R);
                 List<int> targetUsers = new List<int> { 0, 1, 2, 3, 4 };
 
                 /*
@@ -327,7 +327,7 @@ namespace RecSysUnitTest
                      -0.178683   0.162791   0.972828          1   0.258904
                      -0.978839  -0.628768   0.221028   0.258904          1
                  */
-                DenseMatrix userSimilarities = R.UserPearson();
+                DenseMatrix userSimilarities = Metric.GetPearsonOfRows(R);
 
                 // act
                 PR.UserSimilarities = userSimilarities;

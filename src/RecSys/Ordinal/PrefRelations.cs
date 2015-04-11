@@ -1,21 +1,18 @@
-﻿using MathNet.Numerics.Data.Text;
+﻿using MathNet.Numerics;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
+using RecSys.Numerical;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.IO;
-using MathNet.Numerics;
-using RecSys.Core;
-using RecSys.Numerical;
 
 namespace RecSys.Ordinal
 {
-    public class PreferenceRelations
+    public class PrefRelations
     {
+
         #region Properties and accessors
         Dictionary<int, SparseMatrix> preferenceRelations;
         private DenseMatrix userSimilarities;
@@ -25,7 +22,7 @@ namespace RecSys.Ordinal
             get { return preferenceRelations; }
         }
 
-        public PreferenceRelations(int itemCount)
+        public PrefRelations(int itemCount)
         {
             preferenceRelations = new Dictionary<int, SparseMatrix>();
             ItemCount = itemCount;
@@ -100,11 +97,11 @@ namespace RecSys.Ordinal
         #endregion
 
         #region CreateDiscrete
-        public static PreferenceRelations CreateDiscrete(RatingMatrix R)
+        public static PrefRelations CreateDiscrete(RatingMatrix R)
         {
             int userCount = R.UserCount;
-            int itemCount = R.ItemCount ;
-            PreferenceRelations PR = new PreferenceRelations(itemCount);
+            int itemCount = R.ItemCount;
+            PrefRelations PR = new PrefRelations(itemCount);
 
             // Create a preference matrix for each user
             Object lockMe = new Object();
@@ -160,7 +157,7 @@ namespace RecSys.Ordinal
 
                 // Because pr's upper triangular should be a mirror of the lower triangular
                 Debug.Assert((userPreferences.NonZerosCount).IsEven());
-                double debug1 = (Math.Pow(R.GetRow(userIndex).NonZerosCount,2) - R.GetRow(userIndex).NonZerosCount);
+                double debug1 = (Math.Pow(R.GetRow(userIndex).NonZerosCount, 2) - R.GetRow(userIndex).NonZerosCount);
                 double debug2 = userPreferences.NonZerosCount;
                 Debug.Assert(debug1 == debug2);
 
@@ -172,7 +169,7 @@ namespace RecSys.Ordinal
                 }
             });
 
-            
+
 
             return PR;
         }
@@ -182,6 +179,14 @@ namespace RecSys.Ordinal
         // TODO: Scalar preference relations based on Bradley-Terry model
         #endregion
 
+        #region PreferencesToPositions
+        /// <summary>
+        /// Convert one user's preference relations into position matrix
+        /// See: Brun, A., Hamad, A., Buffet, O., & Boyer, A. (2010). 
+        /// Towards preference relations in recommender systems. Workshop in ECML-PKDD.
+        /// </summary>
+        /// <param name="userPreferences"></param>
+        /// <returns></returns>
         public SparseVector PreferencesToPositions(SparseMatrix userPreferences)
         {
             // Count for each preference type
@@ -198,7 +203,7 @@ namespace RecSys.Ordinal
                     count + (pref == Config.Preferences.EquallyPreferred ? 1 : 0), 0.0));
 
             // Note that if the position is value zero then it won't appear in  positionByItem
-            // because the use of SparseVector.OfVector will ignore all zero values
+            // because the use of SparseVector.OfVector() will ignore all zero values
             SparseVector positionByItem = SparseVector.OfVector(
                 (preferredCountByItem - lessPreferredCountByItem)
                 .PointwiseDivide(lessPreferredCountByItem + preferredCountByItem + equallyPreferredCountByItem)
@@ -215,22 +220,9 @@ namespace RecSys.Ordinal
                 }
             }
 
-            /* Does not make scense because there may be multiple items share the position 1
-             * and won't be 1
-            if (positionByItem.Count >= 2)
-            {
-                // If there are at least 2 ratings and not all ratings are the same, 
-                // then at least one item should have position 1
-                if (positionByItem.Max() != Config.ZeroInSparseMatrix
-                    && positionByItem.Max() != 0)
-                {
-                    Debug.Assert(positionByItem.Max() == 1, positionByItem.Max().ToString());
-                }
-            }
-            */
-
             return positionByItem;
         }
+        #endregion
 
         #region GetPositionMatrix
 
@@ -249,16 +241,16 @@ namespace RecSys.Ordinal
 
                 // Convernt preferences into positions
                 SparseVector positionsOfUser = PreferencesToPositions(preferencesOfUser);
-                lock(lockMe)
+                lock (lockMe)
                 {
-                    positionsByUser[indexOfUser]=positionsOfUser;
+                    positionsByUser[indexOfUser] = positionsOfUser;
                 }
             });
 
             // Order the position vectors by user index
             var vectorsOfPositionSortedByUser = from pair in positionsByUser
-                        orderby pair.Key ascending
-                        select pair.Value;
+                                                orderby pair.Key ascending
+                                                select pair.Value;
 
             positionMatrix = SparseMatrix.OfRowVectors(vectorsOfPositionSortedByUser);
             return positionMatrix;
@@ -366,21 +358,21 @@ namespace RecSys.Ordinal
 userPreferences.FoldByRow((count, rating) =>
 count + (rating == Config.Preferences.EquallyPreferred ? 1 : 0), 0.0));
 
-                List<double> positionByItem = (preferredCountByItem-lessPreferredCountByItem).PointwiseDivide(
-                    lessPreferredCountByItem + preferredCountByItem+equallyPreferredCountByItem
+                List<double> positionByItem = (preferredCountByItem - lessPreferredCountByItem).PointwiseDivide(
+                    lessPreferredCountByItem + preferredCountByItem + equallyPreferredCountByItem
                     ).ToList();
                 List<int> itemIndexSortedByPosition = Enumerable.Range(0, positionByItem.Count).ToList();
-                    Sorting.Sort(positionByItem, itemIndexSortedByPosition);
-                    positionByItem.Reverse();   // This is now the sorted position values
-                    itemIndexSortedByPosition.Reverse();    // This is now the the item index sorted by position
-       
-                    // LINQ version
-                    //var sorted = positionByItem
-                    //    .Select((x, i) => new KeyValuePair<double, int>(x, i))
-                    //.OrderBy(x => x.Key)
-                    //.ToList();
-                    //List<double> B = sorted.Select(x => x.Key).ToList();
-                    //List<int> idx = sorted.Select(x => x.Value).ToList();
+                Sorting.Sort(positionByItem, itemIndexSortedByPosition);
+                positionByItem.Reverse();   // This is now the sorted position values
+                itemIndexSortedByPosition.Reverse();    // This is now the the item index sorted by position
+
+                // LINQ version
+                //var sorted = positionByItem
+                //    .Select((x, i) => new KeyValuePair<double, int>(x, i))
+                //.OrderBy(x => x.Key)
+                //.ToList();
+                //List<double> B = sorted.Select(x => x.Key).ToList();
+                //List<int> idx = sorted.Select(x => x.Value).ToList();
 
                 lock (lockMe)
                 {
@@ -393,57 +385,5 @@ count + (rating == Config.Preferences.EquallyPreferred ? 1 : 0), 0.0));
         }
         #endregion
 
-        #region Compute similarities
-        public DenseMatrix UserCosine()
-        {
-            return ComputeSimilarities(Metric.SimilarityMetric.CosinePreferenceRelation);
-        }
-
-        private DenseMatrix ComputeSimilarities(Metric.SimilarityMetric similarityMetric)
-        {
-            int dimension = UserCount;
-            DenseMatrix similarities = new DenseMatrix(dimension);
-
-            // Compute similarity for the lower triangular
-            Object lockMe = new Object();
-            Parallel.For(0, dimension, i =>
-            {
-                Utils.PrintEpoch("Get similarity user/total", i, dimension);
-
-                for (int j = 0; j < dimension; j++)
-                {
-                    if (i == j)
-                    {
-                        lock (lockMe)
-                        {
-                            similarities[i, j] = 1;	// For preference relation based Pearson and Cosine, the max is 1.
-                            // Need to add a switch statement if any metric's max is not 1
-                        }
-                    }
-                    else if (i > j)
-                    {
-                        switch (similarityMetric)
-                        {
-                            case Metric.SimilarityMetric.CosinePreferenceRelation:
-                                lock (lockMe)
-                                {
-                                    similarities[i, j] = Metric.cosinePR(this, i, j);
-                                }
-                                break;
-                            case Metric.SimilarityMetric.PearsonPreferenceRelation:
-                                break;
-                        }
-                    }
-                }
-            });
-            // Copy similarity values from lower triangular to upper triangular
-            similarities = DenseMatrix.OfMatrix(similarities + similarities.Transpose() 
-                - DenseMatrix.CreateIdentity(similarities.RowCount));
-
-            Debug.Assert(similarities[0, 0] == 1, "The similarities[0,0] should be 1 for Pearson correlation.");
-
-            return similarities;
-        }
-        #endregion
     }
 }
