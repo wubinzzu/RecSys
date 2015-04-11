@@ -1,6 +1,6 @@
 # RecSys
 
-This library implements different RecSys algorithms described in research papers including mine.
+The RecSys library implements different RecSys algorithms described in research papers including mine. The library is written in C# for the .NET platform (https://github.com/Microsoft/dotnet), and runs on Windows, Linux (Mono), and MacOS X (Mono).
 
 Implemented Algorithms
 ----------------------
@@ -21,9 +21,22 @@ Implemented Algorithms
     - takes *preference relations* as input to perofrm top-N recommendation.
   
   
+Installation
+-------------
+Coming soon.
+
+
+
 References
 ----------
   
   - <a name="1"></a>[1]: Koren, Y., Bell, R., & Volinsky, C. (2009). Matrix factorization techniques for recommender systems. Computer, (8), 30-37.
     
   - <a name="3"></a>[3]: Brun, A., Hamad, A., Buffet, O., & Boyer, A. (2010, September). Towards preference relations in recommender systems. In Workshop on Preference Learning, European Conference on Machine Learning and Principle and Practice of Knowledge Discovery in Databases (ECML-PKDD 2010).
+
+  
+
+
+Copyright & Licensing
+---------------------
+Coming soon.
