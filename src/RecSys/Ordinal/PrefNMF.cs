@@ -19,16 +19,16 @@ namespace RecSys.Ordinal
     public class PrefNMF
     {
         public static RatingMatrix PredictRatings(PrefRelations PR_train, RatingMatrix R_unknown,
-            int maxEpoch, double learnRate, double regularization, int factorCount)
+            int maxEpoch, double learnRate, double regularizationOfUser, double regularizationOfItem, int factorCount)
         {
             int userCount = PR_train.UserCount;
             int itemCount = PR_train.ItemCount;
             int prefCount = PR_train.GetTotalPrefRelationsCount();
 
             // User latent vectors with default seed
-            DenseMatrix P = Utils.CreateRandomDenseMatrix(userCount, factorCount, Config.Seed);
+            Matrix<double> P = Utils.CreateRandomMatrix(userCount, factorCount, Config.Seed);
             // Item latent vectors with a different seed
-            DenseMatrix Q = Utils.CreateRandomDenseMatrix(factorCount, itemCount, Config.Seed + 1);
+            Matrix<double> Q = Utils.CreateRandomMatrix(factorCount, itemCount, Config.Seed + 1);
 
             // SGD
             for (int epoch = 0; epoch < maxEpoch; ++epoch)
@@ -58,22 +58,20 @@ namespace RecSys.Ordinal
                         double e_uij_derivative = (e_uij * normalized_estimate_uij) / (1 + exp_estimate_uij);
                         
                         // Update feature vectors
-                        // Eq. 7
                         Vector<double> P_u = P.Row(indexOfUser);
-                        Vector<double> P_u_updated = P_u + learnRate * (
-                            (Q.Column(indexOfItem_i) - Q.Column(indexOfItem_j)).Multiply(e_uij_derivative)
-                            + P_u.Multiply(regularization));
+                        Vector<double> Q_i = Q.Column(indexOfItem_i);
+                        Vector<double> Q_j = Q.Column(indexOfItem_j);
+                        Vector<double> Q_ij = Q.Column(indexOfItem_i) - Q.Column(indexOfItem_j);
+                        // Eq. 7
+                        Vector<double> P_u_updated = P_u + (Q_ij.Multiply(e_uij_derivative) + P_u.Multiply(regularizationOfUser)).Multiply(learnRate);
                         P.SetRow(indexOfUser, P_u_updated);
 
                         // Eq. 8
-                        // TODO: take learnRate * (P_u.Multiply(e_uij_derivative) out for Eq 8&9 to save time
-                        Vector<double> Q_i = Q.Column(indexOfItem_i);
-                        Vector<double> Q_i_updated = Q_i + (P_u.Multiply(e_uij_derivative) + Q_i.Multiply(regularization)).Multiply(learnRate);
+                        Vector<double> Q_i_updated = Q_i + (P_u.Multiply(e_uij_derivative) + Q_i.Multiply(regularizationOfItem)).Multiply(learnRate);
                         Q.SetColumn(indexOfItem_i, Q_i_updated);
 
                         // Eq. 9
-                        Vector<double> Q_j = Q.Column(indexOfItem_j);
-                        Vector<double> Q_j_updated = Q_j - (P_u.Multiply(e_uij_derivative) + Q_j.Multiply(regularization)).Multiply(learnRate);
+                        Vector<double> Q_j_updated = Q_j - (P_u.Multiply(e_uij_derivative) + Q_j.Multiply(regularizationOfItem)).Multiply(learnRate);
                         Q.SetColumn(indexOfItem_j, Q_j_updated);
 
                         /*
@@ -120,7 +118,7 @@ namespace RecSys.Ordinal
                             // Sum the regularization term
                             for (int k = 0; k < factorCount; ++k)
                             {
-                                eSum += (regularization * 0.5) * (Math.Pow(P[indexOfUser, k], 2)
+                                eSum += (regularizationOfUser * 0.5) * (Math.Pow(P[indexOfUser, k], 2)
                                     + Math.Pow(Q[k, indexOfItem_i], 2) + Math.Pow(Q[k, indexOfItem_j], 2));
                             }
                         }

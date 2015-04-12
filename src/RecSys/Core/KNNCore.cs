@@ -22,7 +22,7 @@ namespace RecSys.Core
         /// <param name="K">The number of neighbors.</param>
         /// <returns>Each key is one user of the top K neighbors, 
         /// and the value is his similarity to the target user.</returns>
-        public static Dictionary<int, double> GetTopKNeighborsByUser(DenseMatrix similaritiesByUser, int indexOfTargetUser, int K)
+        public static Dictionary<int, double> GetTopKNeighborsByUser(Matrix<double> similaritiesByUser, int indexOfTargetUser, int K)
         {
             Debug.Assert(similaritiesByUser.RowCount == similaritiesByUser.ColumnCount, "The similarities should be in a square matrix.");
             Debug.Assert(similaritiesByUser.RowCount > K, "The total number of users is less than K + 1 ");

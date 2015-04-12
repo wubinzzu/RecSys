@@ -15,7 +15,7 @@ namespace RecSys.Numerical
     {
         #region Variables
         private SparseMatrix ratingMatrix;
-        private DenseMatrix userSimilarities;
+        private Matrix<double> userSimilarities;
         #endregion
 
         #region Properties
@@ -24,7 +24,7 @@ namespace RecSys.Numerical
         public int NonZerosCount { get { return ratingMatrix.NonZerosCount; } }
         public double Density { get { return (double)NonZerosCount / (UserCount * ItemCount); } }
         public SparseMatrix Matrix { get { return ratingMatrix; } }
-        public DenseMatrix UserSimilarities
+        public Matrix<double> UserSimilarities
         {
             get
             {
@@ -42,9 +42,9 @@ namespace RecSys.Numerical
             set { ratingMatrix[indexOfUser, indexOfItem] = value; }
         }
 
-        public SparseVector this[int userIndex]
+        public Vector<double> this[int userIndex]
         {
-            get { return SparseVector.OfVector(ratingMatrix.Row(userIndex)); }
+            get { return ratingMatrix.Row(userIndex); }
         }
 
         public IEnumerable<Tuple<int, Vector<double>>> Users
@@ -104,9 +104,14 @@ namespace RecSys.Numerical
             return ratingMatrix.ColumnSums() / (ratingMatrix.PointwiseDivide(ratingMatrix).ColumnSums());
         }
 
-        public SparseVector GetRow(int userIndex)
+        public Vector<double> GetRow(int userIndex)
         {
-            return SparseVector.OfVector(ratingMatrix.Row(userIndex));
+            return ratingMatrix.Row(userIndex);
+        }
+
+        public int GetNonZerosCountOfRow(int indexOfRow)
+        {
+            return ratingMatrix.Row(indexOfRow).GetNonZerosCount();
         }
 
         public RatingMatrix IndexesOfNonZeroElements()
@@ -117,6 +122,11 @@ namespace RecSys.Numerical
         public RatingMatrix Multiply(double scalar)
         {
             return new RatingMatrix(ratingMatrix.Multiply(scalar));
+        }
+
+        public Matrix<double> PointwiseMultiply(Matrix<double> other)
+        {
+            return ratingMatrix.PointwiseMultiply(other);
         }
         #endregion
     }

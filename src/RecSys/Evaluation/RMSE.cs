@@ -1,4 +1,5 @@
-﻿using RecSys.Numerical;
+﻿using MathNet.Numerics.LinearAlgebra.Double;
+using RecSys.Numerical;
 using System;
 using System.Diagnostics;
 
@@ -14,7 +15,7 @@ namespace RecSys.Evaluation
         {
             Debug.Assert(correctMatrix.NonZerosCount == predictedMatrix.NonZerosCount);
             double enumerator = (predictedMatrix.Matrix - correctMatrix.Matrix).FrobeniusNorm();
-            return enumerator / Math.Sqrt(correctMatrix.Matrix.NonZerosCount);
+            return enumerator / Math.Sqrt(correctMatrix.NonZerosCount);
         }
     }
 }

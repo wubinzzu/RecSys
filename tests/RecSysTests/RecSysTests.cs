@@ -111,8 +111,8 @@ namespace RecSysUnitTest
                     Debug.Assert(preferencesOfUser.Trace() == 0);
 
                     // Check if the correct number of preference relations have been created
-                    Debug.Assert((Math.Pow(R.GetRow(indexOfUser).NonZerosCount, 2)
-                        - R.GetRow(indexOfUser).NonZerosCount)
+                    Debug.Assert((Math.Pow(R.GetNonZerosCountOfRow(indexOfUser), 2)
+                        - R.GetNonZerosCountOfRow(indexOfUser))
                         == preferencesOfUser.NonZerosCount);
                 }
 
@@ -187,13 +187,13 @@ namespace RecSysUnitTest
                 Utils.LoadMovieLensSplitByCount("ua.test", out R_train, out R_test, 9, 7);
                 // 1	265	4	878542441
                 // assert
-                Debug.Assert(R_train.GetRow(0).NonZerosCount == 7);
-                Debug.Assert(R_train.GetRow(1).NonZerosCount == 7);
-                Debug.Assert(R_train.GetRow(2).NonZerosCount == 7);
+                Debug.Assert(R_train.GetNonZerosCountOfRow(0) == 7);
+                Debug.Assert(R_train.GetNonZerosCountOfRow(1) == 7);
+                Debug.Assert(R_train.GetNonZerosCountOfRow(2) == 7);
 
-                Debug.Assert(R_test.GetRow(0).NonZerosCount == 2);
-                Debug.Assert(R_test.GetRow(1).NonZerosCount == 3);
-                Debug.Assert(R_test.GetRow(2).NonZerosCount == 3);
+                Debug.Assert(R_test.GetNonZerosCountOfRow(0) == 2);
+                Debug.Assert(R_test.GetNonZerosCountOfRow(1) == 3);
+                Debug.Assert(R_test.GetNonZerosCountOfRow(2) == 3);
 
                 Debug.Assert(R_train.GetRow(0)[6] == 5);
                 Debug.Assert(R_test.GetRow(0)[6] == SparseMatrix.Zero);
@@ -224,9 +224,9 @@ namespace RecSysUnitTest
 
                 // act
                 // Convert first, Third, and last users' preferences to positions
-                SparseVector positionsOfUserFirst = PR.PreferencesToPositions(PR[0]);
-                SparseVector positionsOfUserThird = PR.PreferencesToPositions(PR[2]);
-                SparseVector positionsOfUserLast = PR.PreferencesToPositions(PR[4]);
+                Vector<double> positionsOfUserFirst = PR.PreferencesToPositions(PR[0]);
+                Vector<double> positionsOfUserThird = PR.PreferencesToPositions(PR[2]);
+                Vector<double> positionsOfUserLast = PR.PreferencesToPositions(PR[4]);
 
                 // assert
                 // Check first user
@@ -248,16 +248,17 @@ namespace RecSysUnitTest
                 Debug.Assert(positionsOfUserLast[3] == Config.ZeroInSparseMatrix); // It is actually a value 0
 
                 // The number of positions should match the number of ratings by each user
-                Debug.Assert(positionsOfUserFirst.NonZerosCount
-                    == SparseVector.OfVector(R.Matrix.Row(0)).NonZerosCount, String.Format("{0}=={1}",
-                    positionsOfUserFirst.NonZerosCount, SparseVector.OfVector(R.Matrix.Row(0)).NonZerosCount));
+                Debug.Assert(positionsOfUserFirst.GetNonZerosCount()
+                    == R.GetNonZerosCountOfRow(0), String.Format("{0}=={1}",
+                    positionsOfUserFirst.GetNonZerosCount(), R.GetNonZerosCountOfRow(0)));
 
-                Debug.Assert(positionsOfUserThird.NonZerosCount
-                    == SparseVector.OfVector(R.Matrix.Row(2)).NonZerosCount, String.Format("{0}=={1}",
-                    positionsOfUserThird.NonZerosCount, SparseVector.OfVector(R.Matrix.Row(2)).NonZerosCount));
+                Debug.Assert(positionsOfUserThird.GetNonZerosCount()
+                    == R.GetNonZerosCountOfRow(2), String.Format("{0}=={1}",
+                    positionsOfUserThird.GetNonZerosCount(), R.GetNonZerosCountOfRow(2)));
 
-                Debug.Assert(positionsOfUserLast.NonZerosCount
-                    == SparseVector.OfVector(R.Matrix.Row(4)).NonZerosCount);
+                Debug.Assert(positionsOfUserLast.GetNonZerosCount()
+                    == R.GetNonZerosCountOfRow(4), String.Format("{0}=={1}",
+                    positionsOfUserLast.GetNonZerosCount(), R.GetNonZerosCountOfRow(4)));
             }
             #endregion
 
@@ -327,7 +328,7 @@ namespace RecSysUnitTest
                      -0.178683   0.162791   0.972828          1   0.258904
                      -0.978839  -0.628768   0.221028   0.258904          1
                  */
-                DenseMatrix userSimilarities = Metric.GetPearsonOfRows(R);
+                Matrix<double> userSimilarities = Metric.GetPearsonOfRows(R);
 
                 // act
                 PR.UserSimilarities = userSimilarities;

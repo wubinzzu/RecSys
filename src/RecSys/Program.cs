@@ -73,8 +73,8 @@ namespace RecSys
             #endregion
 
             #region Compute or load similarities
-            DenseMatrix userSimilaritiesOfRating;
-            DenseMatrix userSimilaritiesOfPref;
+            Matrix<double> userSimilaritiesOfRating;
+            Matrix<double> userSimilaritiesOfPref;
             if (Config.LoadSavedData)
             {
                 Utils.StartTimer();
@@ -136,17 +136,50 @@ namespace RecSys
             }
             #endregion
 
+
+            /************************************************************
+             *   Rating based Non-negative Matrix Factorization
+            ************************************************************/
+            #region Run rating based NMF
+            if (Config.RunNMF)
+            {
+                // Prediction
+                Utils.PrintHeading("Rating based NMF");
+                Utils.StartTimer();
+                RatingMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, Config.NMF.MaxEpoch,
+                    Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
+                Utils.StopTimer();
+
+                // Evaluation
+                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+
+                Utils.Pause();
+            }
+            #endregion
+
+
             /************************************************************
              *   Preferecen relations based Non-negative Matrix Factorization
             ************************************************************/
             #region Run preferecen relations based PrefNMF
-            if (Config.RunPrefNMF)
+            if (Config.RunPrefNMF==false)
             {
                 // Prediction
                 Utils.PrintHeading("Preferecen relations based PrefNMF");
                 Utils.StartTimer();
                 RatingMatrix R_predicted = PrefNMF.PredictRatings(PR_train, R_unknown, Config.PrefNMF.MaxEpoch,
-                    Config.PrefNMF.LearnRate, Config.PrefNMF.Regularization, Config.PrefNMF.K);
+                    Config.PrefNMF.LearnRate, Config.PrefNMF.RegularizationOfUser, 
+                    Config.PrefNMF.RegularizationOfItem, Config.PrefNMF.K);
                 Utils.StopTimer();
 
                 // Evaluation
@@ -194,35 +227,7 @@ namespace RecSys
             }
             #endregion
 
-            /************************************************************
-             *   Rating based Non-negative Matrix Factorization
-            ************************************************************/
-            #region Run rating based NMF
-            if (Config.RunNMF)
-            {
-                // Prediction
-                Utils.PrintHeading("Rating based NMF");
-                Utils.StartTimer();
-                RatingMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, Config.NMF.MaxEpoch,
-                    Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
-                Utils.StopTimer();
 
-                // Evaluation
-                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000"));
-                Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000"));
-                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
-                for (int n = 1; n <= Config.TopN; n++)
-                {
-                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
-                }
-                for (int n = 1; n <= Config.TopN; n++)
-                {
-                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
-                }
-
-                Utils.Pause();
-            }
-            #endregion
 
             /************************************************************
              *   Preference relation based UserKNN

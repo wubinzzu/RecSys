@@ -15,7 +15,7 @@ namespace RecSys.Ordinal
 
         #region Properties and accessors
         Dictionary<int, SparseMatrix> preferenceRelations;
-        private DenseMatrix userSimilarities;
+        private Matrix<double> userSimilarities;
 
         public Dictionary<int, SparseMatrix> PreferenceRelationsByUser
         {
@@ -55,7 +55,7 @@ namespace RecSys.Ordinal
             get;
             set;
         }
-        public DenseMatrix UserSimilarities
+        public Matrix<double> UserSimilarities
         {
             get
             {
@@ -170,7 +170,8 @@ namespace RecSys.Ordinal
 
                 // Because pr's upper triangular should be a mirror of the lower triangular
                 Debug.Assert((userPreferences.NonZerosCount).IsEven());
-                double debug1 = (Math.Pow(R.GetRow(userIndex).NonZerosCount, 2) - R.GetRow(userIndex).NonZerosCount);
+                double debug1 = (Math.Pow(SparseVector.OfVector(R.GetRow(userIndex)).NonZerosCount, 2) 
+                    - SparseVector.OfVector(R.GetRow(userIndex)).NonZerosCount);
                 double debug2 = userPreferences.NonZerosCount;
                 Debug.Assert(debug1 == debug2);
 
@@ -200,7 +201,7 @@ namespace RecSys.Ordinal
         /// </summary>
         /// <param name="userPreferences"></param>
         /// <returns></returns>
-        public SparseVector PreferencesToPositions(SparseMatrix userPreferences)
+        public Vector<double> PreferencesToPositions(SparseMatrix userPreferences)
         {
             // Count for each preference type
             SparseVector preferredCountByItem = SparseVector.OfEnumerable(userPreferences.FoldByRow((count, pref) =>
@@ -217,10 +218,9 @@ namespace RecSys.Ordinal
 
             // Note that if the position is value zero then it won't appear in  positionByItem
             // because the use of SparseVector.OfVector() will ignore all zero values
-            SparseVector positionByItem = SparseVector.OfVector(
+            Vector<double> positionByItem =
                 (preferredCountByItem - lessPreferredCountByItem)
-                .PointwiseDivide(lessPreferredCountByItem + preferredCountByItem + equallyPreferredCountByItem)
-                );
+                .PointwiseDivide(lessPreferredCountByItem + preferredCountByItem + equallyPreferredCountByItem);
 
             // TODO: May improve later. Now I want to make sure that 0 values do appear in the positionByItem,
             // so a very small value is used to indicate value 0 in sparse matrix
@@ -243,7 +243,7 @@ namespace RecSys.Ordinal
         public SparseMatrix GetPositionMatrix()
         {
             SparseMatrix positionMatrix = new SparseMatrix(UserCount, ItemCount);
-            Dictionary<int, SparseVector> positionsByUser = new Dictionary<int, SparseVector>(UserCount);
+            Dictionary<int, Vector<double>> positionsByUser = new Dictionary<int, Vector<double>>(UserCount);
 
             // For each user
             Object lockMe = new Object();
@@ -253,7 +253,7 @@ namespace RecSys.Ordinal
                 SparseMatrix preferencesOfUser = pair.Value;
 
                 // Convernt preferences into positions
-                SparseVector positionsOfUser = PreferencesToPositions(preferencesOfUser);
+                Vector<double> positionsOfUser = PreferencesToPositions(preferencesOfUser);
                 lock (lockMe)
                 {
                     positionsByUser[indexOfUser] = positionsOfUser;

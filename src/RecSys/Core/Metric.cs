@@ -15,7 +15,7 @@ namespace RecSys.Core
     public static class Metric
     {
         #region Public interfaces to compute similarities of matrix/preference relations
-        public static DenseMatrix GetPearsonOfRows(RatingMatrix R)
+        public static Matrix<double> GetPearsonOfRows(RatingMatrix R)
         {
             return ComputeSimilarities(R, SimilarityMetric.PearsonRating);
         }
@@ -33,7 +33,7 @@ namespace RecSys.Core
             // Just rotate the matrix
             throw new NotImplementedException();
         }
-        public static DenseMatrix GetCosineOfPrefRelations(PrefRelations PR)
+        public static Matrix<double> GetCosineOfPrefRelations(PrefRelations PR)
         {
             return ComputeSimilarities(PR, SimilarityMetric.CosinePrefRelations);
         }
@@ -50,12 +50,12 @@ namespace RecSys.Core
         /// <param name="R"></param>
         /// <param name="similarityMetric"></param>
         /// <returns></returns>
-        private static DenseMatrix ComputeSimilarities(RatingMatrix R, Metric.SimilarityMetric similarityMetric)
+        private static Matrix<double> ComputeSimilarities(RatingMatrix R, Metric.SimilarityMetric similarityMetric)
         {
             int dimension = R.UserCount;
 
             // For all metrics we use (Pearson and Cosine) the max similarity is 1.0
-            DenseMatrix similarities = DenseMatrix.OfMatrix(DenseMatrix.Build.DenseDiagonal(dimension, 1));
+            Matrix<double> similarities = Matrix.Build.DenseDiagonal(dimension, 1);
 
             // Compute similarity for the lower triangular
             Object lockMe = new Object();
@@ -90,8 +90,7 @@ namespace RecSys.Core
             });
 
             // Copy similarity values from lower triangular to upper triangular
-            similarities = DenseMatrix.OfMatrix(similarities + similarities.Transpose()
-                - DenseMatrix.CreateIdentity(similarities.RowCount));
+            similarities = similarities + similarities.Transpose() - Matrix.Build.DenseIdentity(similarities.RowCount);
 
             return similarities;
         }
@@ -104,12 +103,12 @@ namespace RecSys.Core
         /// <param name="PR"></param>
         /// <param name="similarityMetric"></param>
         /// <returns></returns>
-        private static DenseMatrix ComputeSimilarities(PrefRelations PR, SimilarityMetric similarityMetric)
+        private static Matrix<double> ComputeSimilarities(PrefRelations PR, SimilarityMetric similarityMetric)
         {
             int dimension = PR.UserCount;
 
             // For all metrics we use (Pearson and Cosine) the max similarity is 1.0
-            DenseMatrix similarities = DenseMatrix.OfMatrix(DenseMatrix.Build.DenseDiagonal(dimension, 1));
+            Matrix<double> similarities = Matrix.Build.DenseDiagonal(dimension, 1);
 
             // Compute similarity for the lower triangular
             Object lockMe = new Object();
@@ -137,8 +136,7 @@ namespace RecSys.Core
                 }
             });
             // Copy similarity values from lower triangular to upper triangular
-            similarities = DenseMatrix.OfMatrix(similarities + similarities.Transpose()
-                - DenseMatrix.CreateIdentity(similarities.RowCount));
+            similarities = similarities + similarities.Transpose() - Matrix.Build.DenseIdentity(similarities.RowCount);
 
             Debug.Assert(similarities[0, 0] == 1, "The similarities[0,0] should be 1 for Pearson correlation.");
 

@@ -1,5 +1,6 @@
 ﻿using MathNet.Numerics.Data.Text;
 using MathNet.Numerics.Distributions;
+using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
 using RecSys.Numerical;
 using System;
@@ -144,7 +145,7 @@ namespace RecSys
         /// </summary>
         /// <param name="matrix">The matrix to be written.</param>
         /// <param name="path">Path of output file.</param>
-        public static void WriteMatrix(Matrix matrix, string path)
+        public static void WriteMatrix(Matrix<double> matrix, string path)
         {
             DelimitedWriter.Write(path, matrix, ",");
         }
@@ -153,10 +154,10 @@ namespace RecSys
         /// Read a desen matrix from file. 0 values are stored.
         /// </summary>
         /// <param name="path">Path of input file.</param>
-        /// <returns>A DenseMatrix.</returns>
-        public static DenseMatrix ReadDenseMatrix(string path)
+        /// <returns>Matrix filled with data from file.</returns>
+        public static Matrix<double> ReadDenseMatrix(string path)
         {
-            return DenseMatrix.OfMatrix(DelimitedReader.Read<double>(path, false, ",", false));
+            return DelimitedReader.Read<double>(path, false, ",", false);
         }
 
         /// <summary>
@@ -170,16 +171,16 @@ namespace RecSys
         }
 
         /// <summary>
-        /// Create a DenseMatrix filled with random numbers from [0,1], uniformly distributed.
+        /// Create a Matrix filled with random numbers from [0,1], uniformly distributed.
         /// </summary>
         /// <param name="rowCount">Number of rows.</param>
         /// <param name="columnCount">Number of columns.</param>
         /// <param name="seed">Random seed.</param>
-        /// <returns>A DenseMatrix filled with random numbers from [0,1].</returns>
-        public static DenseMatrix CreateRandomDenseMatrix(int rowCount, int columnCount, int seed = Config.Seed)
+        /// <returns>A Matrix filled with random numbers from [0,1].</returns>
+        public static Matrix<double> CreateRandomMatrix(int rowCount, int columnCount, int seed = Config.Seed)
         {
             ContinuousUniform uniformDistribution = new ContinuousUniform(0, 1, new Random(Config.Seed));
-            DenseMatrix randomMatrix = DenseMatrix.OfMatrix(Matrix.Build.Random(rowCount, columnCount, uniformDistribution));
+            Matrix<double> randomMatrix = Matrix.Build.Random(rowCount, columnCount, uniformDistribution);
 
             Debug.Assert(randomMatrix.Find(x => x > 1 && x < 0) == null);  // Check the numbers are in [0,1]
 
@@ -234,7 +235,7 @@ namespace RecSys
         {
             if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
             {
-                PrintValue(label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", label2 + " = " + error.ToString("0.0000"));
+                PrintValue(label2 + "@" + label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", error.ToString("0.0000"));
             }
         }
         #endregion
@@ -302,8 +303,8 @@ namespace RecSys
         #endregion
     }
 
-    #region Extension to shuffle IList collections
-    static class ExtensionsToDotNet
+    #region My extensions to .Net and Math.Net libraries
+    public static class ExtensionsToDotNet
     {
         /// <summary>
         /// Add a function to IList interfance to shuffle the list with Fisher–Yates shuffle.
@@ -323,6 +324,30 @@ namespace RecSys
                 list[k] = list[n];
                 list[n] = value;
             }
+        }
+    }
+
+    public static class ExtensionsToMathNet
+    {
+        /// <summary>
+        /// An extension function to compute the sum of squares of non-zero elements
+        /// </summary>
+        public static double SquaredSum(this Matrix<double> matrix)
+        {
+            return matrix.PointwisePower(2).RowSums().Sum();
+            //return Math.Pow(matrix.FrobeniusNorm(), 2);
+        }
+
+        public static int GetNonZerosCount(this Vector<double> vector)
+        {
+            //Debug.Assert(!vector.Storage.IsDense);
+            return SparseVector.OfVector(vector).NonZerosCount;
+        }
+
+        public static int GetNonZerosCount(this Matrix<double> matrix)
+        {
+            //Debug.Assert(!vector.Storage.IsDense);
+            return SparseMatrix.OfMatrix(matrix).NonZerosCount;
         }
     }
     #endregion
