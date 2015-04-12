@@ -27,27 +27,39 @@ namespace RecSys
              *   4. R_test      => Rating Matrix test set
              *   5. R_unknown   => Rating Matrix with ones indicating unknown entries in the R_test
              *   6. PR_train    => Preference relations constructed from R_train
-             *   7. PR_test     => Preference relations constructed from R_test
-             *   8. userSimilaritiesOfRating    => The user-user similarities from R_train
-             *   9. userSimilaritiesOfPref      => The user-user similarities from PR_train
-             *   10. relevantItemsByUser        => The relevant items of each user based on R_test, 
+             *   7. userSimilaritiesOfRating    => The user-user similarities from R_train
+             *   8. userSimilaritiesOfPref      => The user-user similarities from PR_train
+             *   9. relevantItemsByUser         => The relevant items of each user based on R_test, 
              *          is used as ground truth in all ranking evalution
             ************************************************************/
             #region Prepare rating data
             Utils.StartTimer();
-            Utils.PrintHeading("Prepare rating data");
             RatingMatrix R_train;
             RatingMatrix R_test;
-            Utils.LoadMovieLensSplitByCount("u.data", out R_train, out R_test);
+
+            // Load saved or fresh data
+            if(Config.LoadSavedData)
+            {
+                Utils.PrintHeading("Load train/test sets from saved files");
+                R_train = new RatingMatrix(Utils.ReadSparseMatrix(Config.Ratings.TrainSetFile));
+                R_test = new RatingMatrix(Utils.ReadSparseMatrix(Config.Ratings.TestSetFile));
+            }
+            else
+            {
+                Utils.PrintHeading("Create train/test sets from fresh data");
+                Utils.LoadMovieLensSplitByCount(Config.Ratings.DataSetFile, out R_train, out R_test);
+                Utils.WriteMatrix(R_train.Matrix, Config.Ratings.TrainSetFile);
+                Utils.WriteMatrix(R_test.Matrix, Config.Ratings.TestSetFile);
+            }
+            
             RatingMatrix R_unknown = R_test.IndexesOfNonZeroElements();
             Console.WriteLine(R_train.DatasetBrief("Train set"));
             Console.WriteLine(R_test.DatasetBrief("Test set"));
-            //Utils.WriteMatrix(R_train.Matrix, "R_train.csv");
-            //Utils.WriteMatrix(R_test.Matrix, "R_test.csv");
-            Utils.PrintValue("Extract relevant items from test set", Config.Ratings.RelevanceThreshold.ToString("0.0"));
+
+            Utils.PrintValue("Relevant item threshold", Config.Ratings.RelevanceThreshold.ToString("0.0"));
             Dictionary<int, List<int>> relevantItemsByUser = ItemRecommendationCore
                 .GetRelevantItemsByUser(R_test, Config.Ratings.RelevanceThreshold);
-            Utils.PrintValue("Average # of relevant items per user",
+            Utils.PrintValue("Mean # of relevant items per user",
                 relevantItemsByUser.Average(k => k.Value.Count).ToString("0"));
             Utils.StopTimer();
             Utils.Pause();
@@ -57,14 +69,29 @@ namespace RecSys
             Utils.StartTimer();
             Utils.PrintHeading("Prepare preferecen relation data");
             PrefRelations PR_train = PrefRelations.CreateDiscrete(R_train);
-            PrefRelations PR_test = PrefRelations.CreateDiscrete(R_test);
             Utils.StopTimer();
             #endregion
 
             #region Compute or load similarities
             DenseMatrix userSimilaritiesOfRating;
             DenseMatrix userSimilaritiesOfPref;
-            if (Config.RecomputeSimilarity)
+            if (Config.LoadSavedData)
+            {
+                Utils.StartTimer();
+                Utils.PrintHeading("Load user-user similarities from R_train");
+                userSimilaritiesOfRating = Utils.ReadDenseMatrix(Config.Ratings.UserSimilaritiesOfRatingFile);
+                Utils.PrintValue("Sum of similarities", userSimilaritiesOfRating.RowSums().Sum().ToString("0.0000"));
+                Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfRating.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.StopTimer();
+
+                Utils.StartTimer();
+                Utils.PrintHeading("Load user-user similarities from PR_train");
+                userSimilaritiesOfPref = Utils.ReadDenseMatrix(Config.Ratings.UserSimilaritiesOfPrefFile);
+                Utils.PrintValue("Sum of similarities", userSimilaritiesOfPref.RowSums().Sum().ToString("0.0000"));
+                Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfPref.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.StopTimer();
+            }
+            else
             {
                 Utils.StartTimer();
                 Utils.PrintHeading("Compute user-user similarities from R_train");
@@ -78,22 +105,6 @@ namespace RecSys
                 Utils.PrintHeading("Compute user-user similarities from PR_train");
                 userSimilaritiesOfPref = Metric.GetCosineOfPrefRelations(PR_train);
                 Utils.WriteMatrix(userSimilaritiesOfPref, Config.Ratings.UserSimilaritiesOfPrefFile);
-                Utils.PrintValue("Sum of similarities", userSimilaritiesOfPref.RowSums().Sum().ToString("0.0000"));
-                Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfPref.RowAbsoluteSums().Sum().ToString("0.0000"));
-                Utils.StopTimer();
-            }
-            else
-            {
-                Utils.StartTimer();
-                Utils.PrintHeading("Load user-user similarities from R_train");
-                userSimilaritiesOfRating = Utils.ReadDenseMatrix(Config.Ratings.UserSimilaritiesOfRatingFile);
-                Utils.PrintValue("Sum of similarities", userSimilaritiesOfRating.RowSums().Sum().ToString("0.0000"));
-                Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfRating.RowAbsoluteSums().Sum().ToString("0.0000"));
-                Utils.StopTimer();
-
-                Utils.StartTimer();
-                Utils.PrintHeading("Load user-user similarities from PR_train");
-                userSimilaritiesOfPref = Utils.ReadDenseMatrix(Config.Ratings.UserSimilaritiesOfPrefFile);
                 Utils.PrintValue("Sum of similarities", userSimilaritiesOfPref.RowSums().Sum().ToString("0.0000"));
                 Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfPref.RowAbsoluteSums().Sum().ToString("0.0000"));
                 Utils.StopTimer();

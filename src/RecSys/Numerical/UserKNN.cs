@@ -107,8 +107,8 @@ namespace RecSys.Numerical
                     }
                 }
             });
-            Console.WriteLine("{0,-23} │ {1,13}", "# capped predictions", cappedCount);
-            Console.WriteLine("{0,-23} │ {1,13}", "# default predictions", globalMeanCount);
+            Utils.PrintValue("# capped predictions", cappedCount.ToString("D"));
+            Utils.PrintValue("# default predictions", globalMeanCount.ToString("D"));
             return R_predicted;
         }
         #endregion

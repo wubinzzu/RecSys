@@ -77,12 +77,11 @@ namespace RecSys.Numerical
         {
             string brief = "";
             brief += Utils.CreateHeading(title);
-            brief += string.Format("{0,-23} │ {1,13}\n", "# of users", UserCount);
-            brief += string.Format("{0,-23} │ {1,13}\n", "# of items", ItemCount);
-            brief += string.Format("{0,-23} │ {1,13}\n", "# of ratings", NonZerosCount);
-            brief += string.Format("{0,-23} │ {1,13:0.00}\n", "Density level", Density);
-            brief += string.Format("{0,-23} │ {1,13:0.00}\n", "Global mean", GetGlobalMean());
-            brief += Config.BottomRule;
+            brief += Utils.PrintValueToString("# of users", UserCount.ToString("D")) + "\n";
+            brief += Utils.PrintValueToString("# of items", ItemCount.ToString("D")) + "\n";
+            brief += Utils.PrintValueToString("# of ratings", NonZerosCount.ToString("D")) + "\n";
+            brief += Utils.PrintValueToString("Density level", Density.ToString("P")) + "\n";
+            brief += Utils.PrintValueToString("Global mean", GetGlobalMean().ToString("0.00"));
             return brief;
         }
         #endregion

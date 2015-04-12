@@ -196,15 +196,30 @@ namespace RecSys
         public static string CreateHeading(string title)
         {
             string formatedTitle = "";
-            formatedTitle += "******************************************\n";
-            formatedTitle += string.Format("{0,25}\n", title);
-            formatedTitle += "******************************************\n";
+            formatedTitle += new String('*', Config.RightPad + Config.LeftPad + 2) + "\n";
+            formatedTitle += title.PadLeft((Config.RightPad + Config.LeftPad + title.Length) / 2, ' ') + "\n";
+            formatedTitle += new String('*', Config.RightPad + Config.LeftPad + 2) + "\n";
             return formatedTitle;
         }
 
         public static void PrintValue(string label, string value)
         {
-            Console.WriteLine("{0} │ {1}", label.PadRight(Config.RightPad, ' '),
+            string formatedString = "";
+            string labelToPrint = label;
+            while (labelToPrint.Length > Config.RightPad)
+            {
+                formatedString += labelToPrint.Substring(0,Config.RightPad) + "│\n";
+                labelToPrint = labelToPrint.Remove(0, Config.RightPad);
+            }
+            formatedString += String.Format("{0}│{1}", 
+                labelToPrint.PadRight(Config.RightPad, ' '),
+                value.PadLeft(Config.LeftPad, ' '));
+            Console.WriteLine(formatedString);
+        }
+
+        public static string PrintValueToString(string label, string value)
+        {
+            return string.Format("{0}│{1}", label.PadRight(Config.RightPad, ' '),
                 value.PadLeft(Config.LeftPad, ' '));
         }
 
@@ -217,14 +232,14 @@ namespace RecSys
         {
             if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
             {
-                Console.WriteLine("{0,-23} │ {1,13}", label, (epoch + 1) + "/" + maxEpoch);
+                PrintValue(label, (epoch + 1) + "/" + maxEpoch);
             }
         }
         public static void PrintEpoch(string label1, int epoch, int maxEpoch, string label2, double error)
         {
             if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
             {
-                Console.WriteLine("{0,-23} │ {1,13}", label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", label2 + " = " + error.ToString("0.0000"));
+                PrintValue(label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", label2 + " = " + error.ToString("0.0000"));
             }
         }
         #endregion
@@ -240,7 +255,7 @@ namespace RecSys
         {
             stopwatch.Stop();
             double seconds = stopwatch.Elapsed.TotalMilliseconds / 1000;
-            Console.WriteLine("{0} │ {1}s", "Computation time".PadRight(Config.RightPad, ' '),
+            Console.WriteLine("{0}│{1}s", "Computation time".PadRight(Config.RightPad, ' '),
                 seconds.ToString("0.000").PadLeft(Config.LeftPad - 1, ' '));
         }
 
