@@ -136,6 +136,34 @@ namespace RecSys
             }
             #endregion
 
+            /************************************************************
+             *   Preferecen relations based Non-negative Matrix Factorization
+            ************************************************************/
+            #region Run preferecen relations based PrefNMF
+            if (Config.RunPrefNMF)
+            {
+                // Prediction
+                Utils.PrintHeading("Preferecen relations based PrefNMF");
+                Utils.StartTimer();
+                RatingMatrix R_predicted = PrefNMF.PredictRatings(PR_train, R_unknown, Config.PrefNMF.MaxEpoch,
+                    Config.PrefNMF.LearnRate, Config.PrefNMF.Regularization, Config.PrefNMF.K);
+                Utils.StopTimer();
+
+                // Evaluation
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+
+                Utils.Pause();
+            }
+            #endregion
+
 
             /************************************************************
              *   Rating based UserKNN

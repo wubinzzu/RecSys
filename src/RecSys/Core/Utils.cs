@@ -14,11 +14,6 @@ namespace RecSys
     /// This class implements core functions shared by differnet algorithms.
     /// Including read/write files, printing messages, timer, etc.
     /// </summary>
-    /// <remarks>
-    /// 1. For SparseMatrix, all entries are initialized to ZERO, when we read it, it will be a value 0. The NonZeroCount would be 0.
-    /// However, if we insert a value 0 into the matrix, the NonZeroCount would become 1, and that entry will be enumerated in loop.
-    /// Question: SparseVector.OfVector(), what will happen if the real ZERO and value 0 are mixed?
-    /// </remarks>
     public class Utils
     {
         #region Data IO

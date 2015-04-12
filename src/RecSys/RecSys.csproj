@@ -67,11 +67,13 @@
     <Compile Include="Core\ItemRecommendationCore.cs" />
     <Compile Include="Core\KNNCore.cs" />
     <Compile Include="Core\Metric.cs" />
+    <Compile Include="Core\SpecialFunctions.cs" />
     <Compile Include="Evaluation\MAE.cs" />
     <Compile Include="Evaluation\NCDG.cs" />
     <Compile Include="Evaluation\RMSE.cs" />
     <Compile Include="Numerical\RatingMatrix.cs" />
     <Compile Include="Numerical\RatingVector.cs" />
+    <Compile Include="Ordinal\PrefNMF.cs" />
     <Compile Include="Ordinal\PrefRelations.cs" />
     <Compile Include="Numerical\UserKNN.cs" />
     <Compile Include="Numerical\NMF.cs" />

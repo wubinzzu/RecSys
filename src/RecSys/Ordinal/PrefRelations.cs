@@ -17,7 +17,7 @@ namespace RecSys.Ordinal
         Dictionary<int, SparseMatrix> preferenceRelations;
         private DenseMatrix userSimilarities;
 
-        public Dictionary<int, SparseMatrix> GetAllPreferenceRelations
+        public Dictionary<int, SparseMatrix> PreferenceRelationsByUser
         {
             get { return preferenceRelations; }
         }
@@ -68,6 +68,19 @@ namespace RecSys.Ordinal
             }
         }
 
+        public int GetTotalPrefRelationsCount()
+        {
+            int count = 0;
+
+            foreach (var pair in PreferenceRelationsByUser)
+            {
+                SparseMatrix preferenceRelationsOfUser = pair.Value;
+                count += preferenceRelationsOfUser.NonZerosCount;
+            }
+            return count;
+        }
+
+        [Obsolete("Used by old implementation.")]
         public Dictionary<int, List<int>> GetSeenItemsByUser()
         {
             Dictionary<int, List<int>> seenItemsByUser = new Dictionary<int, List<int>>();
@@ -131,7 +144,7 @@ namespace RecSys.Ordinal
                         int rightItemIndex = right.Item1;
 
                         // TODO: We could compute only the lower triangular, 
-                        // and uppwer will be a mirror
+                        // and uppwer will be a negative mirror
                         // Let's do it directly at this stage
                         double rightItemRating = right.Item2;
 

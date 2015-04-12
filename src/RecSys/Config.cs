@@ -15,15 +15,25 @@ namespace RecSys
         public static readonly string Rule = "\n───────────────────────\n"; // \u2500
         public static readonly string LongRule = "\n──────────────────────────────────\n";
         public static readonly bool RunNMF = true;
+        public static readonly bool RunPrefNMF = true;
         public static readonly bool RunRatingUserKNN = true;
         public static readonly bool RunPreferenceUserKNN = true;
         public static readonly bool RunGlobalMean = true;
-        public static readonly bool LoadSavedData = true;
+        public static readonly bool LoadSavedData = false;
         public static readonly double ZeroInSparseMatrix = 1e-14;
         public const int MinCountOfRatings = 60;
         public const int CountOfRatingsForTrain = 50;
 
         public class NMF
+        {
+            // Matrix Factorization
+            public static readonly int K = 30;				// Num of factors
+            public static readonly int MaxEpoch = 100;
+            public static readonly double LearnRate = 0.01;
+            public static readonly double Regularization = 0.1;
+        }
+
+        public class PrefNMF
         {
             // Matrix Factorization
             public static readonly int K = 30;				// Num of factors
@@ -46,9 +56,9 @@ namespace RecSys
 
         public class Preferences
         {
-            public static readonly double Preferred = 3;
-            public static readonly double EquallyPreferred = 2;
-            public static readonly double LessPreferred = 1;
+            public static readonly double Preferred = 1;
+            public static readonly double EquallyPreferred = 0.5;
+            public static readonly double LessPreferred = ZeroInSparseMatrix;
         }
 
         public class KNN

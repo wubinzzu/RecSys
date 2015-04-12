@@ -26,15 +26,13 @@ namespace RecSys
             // SGD
             for (int epoch = 0; epoch < maxEpoch; ++epoch)
             {
-                double e_ij = 0;
-
                 foreach (Tuple<int, int, double> element in R_train.Ratings)
                 {
                     int userIndex = element.Item1;
                     int itemIndex = element.Item2;
                     double rating = element.Item3;
 
-                    e_ij = rating - P.Row(userIndex).DotProduct(Q.Column(itemIndex));
+                    double e_ij = rating - P.Row(userIndex).DotProduct(Q.Column(itemIndex));
 
                     // Update feature vectors
                     for (int k = 0; k < factorCount; ++k)
@@ -69,7 +67,7 @@ namespace RecSys
                     // Record the current error
                     e_curr = e;
 
-                    Utils.PrintEpoch("Epoch", epoch, maxEpoch, "Reg RMSE", Math.Sqrt(e / ratingCount));
+                    Utils.PrintEpoch("Epoch", epoch, maxEpoch, "Learning error", Math.Sqrt(e / ratingCount));
                 }
                 // Stop the learning if the regularized error falls below a certain threshold
                 if (e_prev - e_curr < 0.001)

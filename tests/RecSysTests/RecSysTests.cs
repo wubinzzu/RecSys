@@ -102,7 +102,7 @@ namespace RecSysUnitTest
                 PrefRelations PR = PrefRelations.CreateDiscrete(R);
 
                 // assert
-                foreach (KeyValuePair<int, SparseMatrix> user in PR.GetAllPreferenceRelations)
+                foreach (KeyValuePair<int, SparseMatrix> user in PR.PreferenceRelationsByUser)
                 {
                     int indexOfUser = user.Key;
                     SparseMatrix preferencesOfUser = user.Value;
