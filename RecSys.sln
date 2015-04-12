@@ -9,9 +9,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecSysTests", "tests\RecSys
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{544F130E-8539-4ECE-8327-EAE0853171F0}"
 	ProjectSection(SolutionItems) = preProject
-		DevelopmentNotes.txt = DevelopmentNotes.txt
+		docs\DevelopmentNotes.txt = docs\DevelopmentNotes.txt
 		LICENSE.txt = LICENSE.txt
-		NamingConventions.txt = NamingConventions.txt
+		docs\NamingConventions.txt = docs\NamingConventions.txt
 		README.md = README.md
 	EndProjectSection
 EndProject
