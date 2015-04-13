@@ -74,6 +74,7 @@ namespace RecSys.Ordinal
                         Vector<double> Q_j_updated = Q_j - (P_u.Multiply(e_uij_derivative) + Q_j.Multiply(regularizationOfItem)).Multiply(learnRate);
                         Q.SetColumn(indexOfItem_j, Q_j_updated);
 
+                        #region Loop version of gradient update
                         /*
                         for (int k = 0; k < factorCount; ++k)
                         {
@@ -89,6 +90,7 @@ namespace RecSys.Ordinal
                             Q[k, indexOfItem_j] -= learnRate * (normalized_estimate_uij * factorOfItem_j - regularization * factorOfItem_j);
                         }
                         */
+                        #endregion
                     }
                 }
 

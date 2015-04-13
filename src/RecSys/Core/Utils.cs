@@ -45,7 +45,7 @@ namespace RecSys
             // Read the file to discover the whole matrix structure and mapping
             foreach (string line in File.ReadLines(fileOfDataSet))
             {
-                string[] tokens = line.Split('\t');
+                string[] tokens = line.Split(Config.SplitSeperators, StringSplitOptions.RemoveEmptyEntries);
                 int indexOfUser = int.Parse(tokens[0]);
                 int indexOfItem = int.Parse(tokens[1]);
                 if (!userByIndex.ContainsKey(indexOfUser))          // We update index only for new user
@@ -108,7 +108,7 @@ namespace RecSys
             // Process each line and put ratings into training/testing sets
             foreach (string line in linesInFile)
             {
-                string[] tokens = line.Split('\t');
+                string[] tokens = line.Split(Config.SplitSeperators, StringSplitOptions.RemoveEmptyEntries);
                 int fileIndexOfUser = int.Parse(tokens[0]);
                 int fileIndexOfItem = int.Parse(tokens[1]);
                 double rating = double.Parse(tokens[2]);

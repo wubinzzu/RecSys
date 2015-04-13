@@ -23,6 +23,7 @@ namespace RecSys
         public static readonly double ZeroInSparseMatrix = 1e-14;
         public const int MinCountOfRatings = 60;
         public const int CountOfRatingsForTrain = 50;
+        public static readonly string[] SplitSeperators = { "\t", "::" };
 
         public class NMF
         {
@@ -45,7 +46,7 @@ namespace RecSys
 
         public class Ratings
         {
-            public static readonly string DataSetFile = "u.data";
+            public static readonly string DataSetFile = "1m.data";
             public static readonly string TrainSetFile = "R_train.csv";
             public static readonly string TestSetFile = "R_test.csv";
             public static readonly string UserSimilaritiesOfRatingFile = "userSimilaritiesOfRating.csv";

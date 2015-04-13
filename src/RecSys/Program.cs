@@ -10,6 +10,7 @@ using MathNet.Numerics.Providers.LinearAlgebra.Mkl;
 using MathNet.Numerics.LinearAlgebra.Double;
 using MathNet.Numerics.Data.Text;
 using MathNet.Numerics.LinearAlgebra;
+using System.IO;
 
 namespace RecSys
 {
