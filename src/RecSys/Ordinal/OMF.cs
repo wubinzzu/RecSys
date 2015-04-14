@@ -5,25 +5,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace RecSys.Ordinal
 {
-    /// <summary>
-    /// This class contains two parameters for each user.
-    /// t1 is the overall bias for this user,
-    /// and betas are the biases for each rating interval
-    /// </summary>
-    class ParametersOfUser
-    {
-        public double t1 { get; set; }
-        public Vector<double> betas { get; set; }
-        public ParametersOfUser(double t1, Vector<double> betas)
-        {
-            this.t1 = t1;
-            this.betas = betas;
-        }
-    }
-
     /// <summary>
     /// Ordinal Matrix Factorization.
     /// See Koren, Y., & Sill, J. (2011). 
@@ -33,7 +18,7 @@ namespace RecSys.Ordinal
     /// </summary>
     public class OMF
     {
-        #region PredictRatings
+
         /// <summary>
         /// Ordinal Matrix Factorization.
         /// </summary>
@@ -41,13 +26,14 @@ namespace RecSys.Ordinal
         /// <param name="R_unknown">The matrix contains ones indicating unknown ratings</param>
         /// <param name="R_scorer">This matrix contains ratings predicted by the scorer on
         /// both the R_train and R_unknown sets</param>
-        /// <returns></returns>
+        /// <returns>The predicted ratings on R_unknown</returns>
+        #region PredictRatings
         public static SparseMatrix PredictRatings(SparseMatrix R_train, SparseMatrix R_unknown, SparseMatrix R_scorer)
         {
             /************************************************************
              *   Parameterization and Initialization
             ************************************************************/
-            
+            #region Parameterization and Initialization
             // This matrix stores predictions
             SparseMatrix R_predicted = (SparseMatrix)Matrix.Build.Sparse(R_unknown.RowCount, R_unknown.ColumnCount);
 
@@ -57,10 +43,10 @@ namespace RecSys.Ordinal
             double regularization = Config.OMF.Regularization;
             List<double> quantizer = Config.OMF.quantizerValues;
             int intervalCount = quantizer.Count;
+            int userCount = R_train.RowCount;
 
             // Parameters for each user
             Dictionary<int, ParametersOfUser> paramtersByUser = new Dictionary<int, ParametersOfUser>(R_train.RowCount);
-
 
             // Compute initial values of t1 and betas 
             // that will be used for all users, Eq. 5
@@ -79,14 +65,15 @@ namespace RecSys.Ordinal
             {
                 paramtersByUser[indexOfUser] = new ParametersOfUser(t1_initial, betas_initial);
             }
-
+            #endregion
 
             /************************************************************
              *   Learn parameters from training data R_train and R_score
             ************************************************************/
-
+            #region Learn parameters from training data R_train and R_score
             // Learn parameters for each user, note that each user has his own model
-            foreach (var row in R_train.EnumerateRowsIndexed())
+            Object lockMe = new Object();
+            Parallel.ForEach(R_train.EnumerateRowsIndexed(), row =>
             {
                 int indexOfUser = row.Item1;
                 SparseVector ratingsOfUser = (SparseVector)row.Item2;
@@ -141,21 +128,22 @@ namespace RecSys.Ordinal
                 }
 
                 // Store the leanred paramemters
-                paramtersByUser[indexOfUser].t1 = t1;
-                paramtersByUser[indexOfUser].betas = betas;
-
-               
-
-                Console.WriteLine("Leanred parameters for {0}: t1={1:0.0000}, betas={2}", indexOfUser, t1, string.Concat(betas.Select(i => string.Format("{0:0.000}\t", i))));
-
-            }
-
+                lock (lockMe)
+                {
+                    paramtersByUser[indexOfUser].t1 = t1;
+                    paramtersByUser[indexOfUser].betas = betas;
+                }
+                Utils.PrintEpoch("user/total", indexOfUser, userCount, "Learned params",
+                    String.Format("t1={0:0.000},betas={1}", t1, string.Concat(betas.Select(i => string.Format("{0:0.00},", i))))
+                    );
+            });
+            #endregion
 
             /************************************************************
              *   Make predictions using learned parameters
             ************************************************************/
-
-            foreach (var row in R_unknown.EnumerateRowsIndexed())
+            #region Make predictions using learned parameters
+            Parallel.ForEach(R_unknown.EnumerateRowsIndexed(), row =>
             {
                 int indexOfUser = row.Item1;
                 SparseVector unknownRatingsOfUser = (SparseVector)row.Item2;
@@ -180,7 +168,7 @@ namespace RecSys.Ordinal
                     }
 
                     // Compute smoothed expectation for RMSE metric
-                    double expectationRating = 0.0; 
+                    double expectationRating = 0.0;
                     for (int i = 0; i < probabilitiesByInterval.Count; i++)
                     {
                         expectationRating += (i + 1) * probabilitiesByInterval[i];
@@ -189,38 +177,19 @@ namespace RecSys.Ordinal
                     // TODO: Compute most likely value for MAE metric
 
                     // Stores the numerical prediction
-                    R_predicted[indexOfUser, indexOfItem] = expectationRating;
+                    lock (lockMe)
+                    {
+                        R_predicted[indexOfUser, indexOfItem] = expectationRating;
+                    }
                 }
-            }
+            });
+            #endregion
+
             return R_predicted;
         }
         #endregion
 
-        #region Some utility functions
-        /// <summary>
-        /// Compute the user-specific threshold Eq. 13
-        /// </summary>
-        /// <param name="interval">The interval of the threshold to be computed</param>
-        /// <param name="t1">The t1 parameter of the user</param>
-        /// <param name="betas">The betas parameter of the user</param>
-        /// <returns></returns>
-        private static double ComputeThreshold(int interval, double t1, Vector<double> betas)
-        {
-            double t_r = t1;
-
-            if (interval < 0) { t_r = double.NegativeInfinity; }
-            else if (interval == 0) { t_r = t1; }
-            else if (interval > betas.Count) { return double.PositiveInfinity; }
-            else
-            {
-                for (int k = 0; k < interval; k++)
-                    t_r += Math.Exp(betas[k]);
-            }
-            //else { t_r += betas.SubVector(0, interval).PointwiseExp().Sum(); } // Equation 5
-
-            return t_r;
-        }
-
+        #region Some utility functions and parameter class
         /// <summary>
         /// Compute the probability of the score falls into the interval r or before
         /// Eq. 9/13
@@ -237,10 +206,10 @@ namespace RecSys.Ordinal
             if (r < 0) { t_r = double.NegativeInfinity; }
             else if (r == 0) { t_r = t1; }
             else if (r > betas.Count) { t_r = double.PositiveInfinity; }
-            else 
+            else
             {
-                t_r += betas.SubVector(0, r).PointwiseExp().Sum(); // Equation 5
-            } 
+                for (int i = 0; i < r; i++) { t_r += Math.Exp(betas[i]); }  // Equation 5
+            }
 
             return 1 / (1 + (double)Math.Exp(score - t_r));
         }
@@ -264,6 +233,22 @@ namespace RecSys.Ordinal
                 derivativeOfBeta = Math.Exp(beta);
             }
             return derivativeOfBeta;
+        }
+
+        /// <summary>
+        /// This class encapsulates two parameters for each user.
+        /// t1 is the overall bias for this user,
+        /// and betas are the biases for each rating interval
+        /// </summary>
+        private class ParametersOfUser
+        {
+            public double t1 { get; set; }
+            public Vector<double> betas { get; set; }
+            public ParametersOfUser(double t1, Vector<double> betas)
+            {
+                this.t1 = t1;
+                this.betas = betas;
+            }
         }
         #endregion
     }

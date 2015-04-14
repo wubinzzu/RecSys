@@ -238,6 +238,13 @@ namespace RecSys
                 PrintValue(label2 + "@" + label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", error.ToString("0.0000"));
             }
         }
+        public static void PrintEpoch(string label1, int epoch, int maxEpoch, string label2, string message)
+        {
+            if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
+            {
+                PrintValue(label2 + "@" + label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", message);
+            }
+        }
         #endregion
 
         #region Timer & Excution control
