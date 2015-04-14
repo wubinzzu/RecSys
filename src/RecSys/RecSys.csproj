@@ -73,6 +73,8 @@
     <Compile Include="Evaluation\RMSE.cs" />
     <Compile Include="Numerical\RatingMatrix.cs" />
     <Compile Include="Numerical\RatingVector.cs" />
+    <Compile Include="Ordinal\OMF.cs" />
+    <Compile Include="Ordinal\OrdinalMatrixFactorization.cs" />
     <Compile Include="Ordinal\PrefNMF.cs" />
     <Compile Include="Ordinal\PrefRelations.cs" />
     <Compile Include="Numerical\UserKNN.cs" />

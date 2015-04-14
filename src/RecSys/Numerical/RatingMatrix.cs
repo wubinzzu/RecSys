@@ -68,6 +68,7 @@ namespace RecSys.Numerical
         }
         public RatingMatrix(Matrix<double> ratingMatrix)
         {
+            // TODO: we can just cast it with (SparseMatrix)!
             this.ratingMatrix = SparseMatrix.OfMatrix(ratingMatrix);
         }
         #endregion
@@ -127,6 +128,17 @@ namespace RecSys.Numerical
         public Matrix<double> PointwiseMultiply(Matrix<double> other)
         {
             return ratingMatrix.PointwiseMultiply(other);
+        }
+
+        /// <summary>
+        /// Merge another matrix to this matrix. It is required that two matrixes do not overlap
+        /// </summary>
+        /// <param name="matrix"></param>
+        public void MergeNonOverlap(RatingMatrix matrix)
+        {
+            int count = ratingMatrix.NonZerosCount;
+            ratingMatrix += matrix.Matrix;
+            Debug.Assert(count + matrix.Matrix.NonZerosCount == ratingMatrix.NonZerosCount);
         }
         #endregion
     }

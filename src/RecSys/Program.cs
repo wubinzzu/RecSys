@@ -142,13 +142,54 @@ namespace RecSys
              *   Rating based Non-negative Matrix Factorization
             ************************************************************/
             #region Run rating based NMF
-            if (Config.RunNMF)
+            if (Config.RunNMF==false)
             {
                 // Prediction
                 Utils.PrintHeading("Rating based NMF");
                 Utils.StartTimer();
                 RatingMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, Config.NMF.MaxEpoch,
                     Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
+                Utils.StopTimer();
+
+                // Evaluation
+                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+
+                Utils.Pause();
+            }
+            #endregion
+
+
+            /************************************************************
+             *   Ordinal Matrix Factorization with NMF as scorer
+            ************************************************************/
+            #region Run Ordinal Matrix Factorization with NMF as scorer
+            if (true)
+            {
+                // Get ratings from scorer, for both train and test
+                // R_all contains indexes of all ratings both train and test
+                RatingMatrix R_all = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+                R_all.MergeNonOverlap(R_unknown);
+                R_all.MergeNonOverlap(R_train.IndexesOfNonZeroElements());
+
+                RatingMatrix R_predictedByNMF = NMF.PredictRatings(R_train, R_all, Config.NMF.MaxEpoch,
+                    Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
+
+                // Prediction
+                Utils.PrintHeading("Ordinal Matrix Factorization with NMF as scorer");
+                Utils.StartTimer();
+                RatingMatrix R_predicted = new RatingMatrix(
+                    OMF.PredictRatings(R_train.Matrix, R_unknown.Matrix, R_predictedByNMF.Matrix)
+                    );
                 Utils.StopTimer();
 
                 // Evaluation

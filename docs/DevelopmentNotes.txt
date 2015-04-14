@@ -16,3 +16,5 @@ and access critical resources at the end of the loop, e.g. store the final resul
 5. Matrix class has a property (Storage.IsDense) that tracks whether it is sparse or dense. 
 Therefore it is unnecessary to use SparseMatrix.OfMatrix() to explicitly cast the type when some operations
 return a Matrix<double> instead of SparseMatrix.
+
+6. Initialize variables in declaration when there is no constructor accepts initialization parameters.

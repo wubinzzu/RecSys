@@ -19,11 +19,21 @@ namespace RecSys
         public static readonly bool RunRatingUserKNN = true;
         public static readonly bool RunPreferenceUserKNN = true;
         public static readonly bool RunGlobalMean = true;
-        public static readonly bool LoadSavedData = false;
+        public static readonly bool LoadSavedData = true;
         public static readonly double ZeroInSparseMatrix = 1e-14;
         public const int MinCountOfRatings = 60;
         public const int CountOfRatingsForTrain = 50;
         public static readonly string[] SplitSeperators = { "\t", "::" };
+
+        public class OMF
+        {
+            public static readonly List<double> quantizerValues 
+                = new List<double> { 1, 2, 3, 4, 5 };
+            public static readonly int MaxEpoch = 1000;
+            public static readonly double LearnRate = 0.001;
+            public static readonly double Regularization = 0.015;
+            public static readonly int LevelCount = 5;
+        }
 
         public class NMF
         {
@@ -46,7 +56,7 @@ namespace RecSys
 
         public class Ratings
         {
-            public static readonly string DataSetFile = "1m.data";
+            public static readonly string DataSetFile = "100k.data";
             public static readonly string TrainSetFile = "R_train.csv";
             public static readonly string TestSetFile = "R_test.csv";
             public static readonly string UserSimilaritiesOfRatingFile = "userSimilaritiesOfRating.csv";
