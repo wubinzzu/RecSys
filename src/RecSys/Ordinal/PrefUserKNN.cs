@@ -96,6 +96,7 @@ namespace RecSys.Ordinal
         }
 
         #region PrefUserKNN
+        [Obsolete]
         public static Dictionary<int, List<int>> RecommendTopN(PrefRelations PR_train, int K, List<int> targetUsers, int topN)
         {
             Dictionary<int, List<int>> topNItemsByUser = new Dictionary<int, List<int>>(targetUsers.Count);

@@ -13,7 +13,7 @@ namespace RecSys.Numerical
         SparseVector ratingVector;
         public RatingVector(Vector<double> ratingVector)
         {
-            this.ratingVector = SparseVector.OfVector(ratingVector);
+            this.ratingVector = ratingVector.Storage.IsDense ? SparseVector.OfVector(ratingVector) : (SparseVector)ratingVector;
         }
 
         public IEnumerable<Tuple<int, double>> Ratings

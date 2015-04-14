@@ -348,13 +348,13 @@ namespace RecSys
         public static int GetNonZerosCount(this Vector<double> vector)
         {
             //Debug.Assert(!vector.Storage.IsDense);
-            return SparseVector.OfVector(vector).NonZerosCount;
+            return ((SparseVector)vector).NonZerosCount;
         }
 
         public static int GetNonZerosCount(this Matrix<double> matrix)
         {
             //Debug.Assert(!vector.Storage.IsDense);
-            return SparseMatrix.OfMatrix(matrix).NonZerosCount;
+            return ((SparseMatrix)matrix).NonZerosCount;
         }
     }
     #endregion

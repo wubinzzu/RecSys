@@ -68,8 +68,7 @@ namespace RecSys.Numerical
         }
         public RatingMatrix(Matrix<double> ratingMatrix)
         {
-            // TODO: we can just cast it with (SparseMatrix)!
-            this.ratingMatrix = SparseMatrix.OfMatrix(ratingMatrix);
+            this.ratingMatrix = ratingMatrix.Storage.IsDense ? SparseMatrix.OfMatrix(ratingMatrix) : (SparseMatrix)ratingMatrix;
         }
         #endregion
 

@@ -3,6 +3,7 @@ using MathNet.Numerics.LinearAlgebra.Double;
 using RecSys.Evaluation;
 using RecSys.Numerical;
 using System;
+using System.Diagnostics;
 
 namespace RecSys
 {

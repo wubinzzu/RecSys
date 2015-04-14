@@ -36,6 +36,11 @@ namespace RecSys.Core
 
                 // To be sorted soon
                 List<double> ratingsOfItemsSortedByRating = user.Item2.ToList();
+
+                // TODO: this is important, because some models like PrefNMF may produce
+                // negative scores, without setting the 0 to negative infinity these
+                // items will be ranked before the test items and they are always not relevant items!
+                ratingsOfItemsSortedByRating.ForEach(x => x = x == 0 ? double.NegativeInfinity : x);
                 List<int> indexesOfItemsSortedByRating = Enumerable.Range(0, ratingsOfItemsSortedByRating.Count).ToList();
 
                 // Sort by rating

@@ -170,8 +170,8 @@ namespace RecSys.Ordinal
 
                 // Because pr's upper triangular should be a mirror of the lower triangular
                 Debug.Assert((userPreferences.NonZerosCount).IsEven());
-                double debug1 = (Math.Pow(SparseVector.OfVector(R.GetRow(userIndex)).NonZerosCount, 2) 
-                    - SparseVector.OfVector(R.GetRow(userIndex)).NonZerosCount);
+                double debug1 = (Math.Pow(((SparseVector)R.GetRow(userIndex)).NonZerosCount, 2) 
+                    - ((SparseVector)R.GetRow(userIndex)).NonZerosCount);
                 double debug2 = userPreferences.NonZerosCount;
                 Debug.Assert(debug1 == debug2);
 

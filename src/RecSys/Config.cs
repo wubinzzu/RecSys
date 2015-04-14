@@ -47,11 +47,11 @@ namespace RecSys
         public class PrefNMF
         {
             // Matrix Factorization
-            public static readonly int K = 10;				// Num of factors
-            public static readonly int MaxEpoch = 100;
-            public static readonly double LearnRate = 0.01;
-            public static readonly double RegularizationOfUser = 0.001;     // From Desarkar's paper
-            public static readonly double RegularizationOfItem = 0.0005;    // From Desarkar's paper
+            public static readonly int K = 30;				// Num of factors
+            public static readonly int MaxEpoch = 30;
+            public static readonly double LearnRate = 0.001;
+            public static readonly double RegularizationOfUser = 0.05;     // From Desarkar's paper
+            public static readonly double RegularizationOfItem = 0.03;    // From Desarkar's paper
         }
 
         public class Ratings

@@ -142,7 +142,7 @@ namespace RecSys
              *   Rating based Non-negative Matrix Factorization
             ************************************************************/
             #region Run rating based NMF
-            if (Config.RunNMF==false)
+            if (Config.RunNMF)
             {
                 // Prediction
                 Utils.PrintHeading("Rating based NMF");
@@ -173,8 +173,10 @@ namespace RecSys
              *   Ordinal Matrix Factorization with NMF as scorer
             ************************************************************/
             #region Run Ordinal Matrix Factorization with NMF as scorer
-            if (true)
+            if (false)
             {
+                Utils.PrintHeading("Train NMF as scorer for OMF");
+
                 // Get ratings from scorer, for both train and test
                 // R_all contains indexes of all ratings both train and test
                 RatingMatrix R_all = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
@@ -214,7 +216,7 @@ namespace RecSys
              *   Preferecen relations based Non-negative Matrix Factorization
             ************************************************************/
             #region Run preferecen relations based PrefNMF
-            if (Config.RunPrefNMF==false)
+            if (Config.RunPrefNMF==true)
             {
                 // Prediction
                 Utils.PrintHeading("Preferecen relations based PrefNMF");
@@ -225,6 +227,7 @@ namespace RecSys
                 Utils.StopTimer();
 
                 // Evaluation
+                R_predicted.Matrix.MapInplace(x => RecSys.Core.SpecialFunctions.InverseLogit(x), Zeros.AllowSkip);
                 var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
                 for (int n = 1; n <= Config.TopN; n++)
                 {
