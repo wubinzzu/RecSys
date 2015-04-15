@@ -306,15 +306,15 @@ namespace RecSys.Ordinal
             // up the position 0 and the 0 in sparsematrix.
             // So we use a constant to hold the space for position value 0
             // it should be reverted back when use
-            Vector<double> indicatorVector = userPreferences.RowSums();
-            for (int i = 0; i < indicatorVector.Count; i++)
-            {
+            //Vector<double> indicatorVector = userPreferences.RowSums();
+            //for (int i = 0; i < indicatorVector.Count; i++)
+            //{
                 //if (indicatorVector[i] != 0 && positionByItem[i] != 0)
                 //{
                 //    Debug.Assert(true, "By using the PositionShift constant, we should not be in here.");
                  //   positionByItem[i] = Config.ZeroInSparseMatrix;
                // }
-            }
+            //}
 
             return positionByItem;
         }
@@ -481,5 +481,46 @@ count + (rating == Config.Preferences.EquallyPreferred ? 1 : 0), 0.0));
         }
         #endregion
 
+
+        /// <summary>
+        /// Map the original values into several equal size bins,
+        /// a new value is assigned depending on the bin
+        /// </summary>
+        /// <param name="range"></param>
+        /// <param name="binCount"></param>
+        /// <param name="quantilizer"></param>
+        public void Quantilize(double range, int binCount, List<double> quantilizer)
+        {
+            Dictionary<int, SparseMatrix> preferenceRelationsQuantilized
+                = new Dictionary<int, SparseMatrix>(preferenceRelations.Count);
+
+            double binSize = range / binCount;
+            Utils.WriteMatrix(preferenceRelations[0], "beforeQuantilize.csv");
+            foreach(var pair in preferenceRelations)
+            {
+                int indexOfUser = pair.Key;
+                SparseMatrix preferencesOfUser = pair.Value;
+                SparseMatrix preferencesOfUserQuantilized = new SparseMatrix(preferencesOfUser.RowCount);
+                foreach (var element in preferencesOfUser.EnumerateIndexed(Zeros.AllowSkip))
+                {
+                    int indexOfItem_i = element.Item1;
+                    int indexOfItem_j = element.Item2;
+                    double preference = element.Item3;
+                    for (int indexOfBin = 0; indexOfBin < binCount; indexOfBin++)
+                    {
+                        if (preference < (indexOfBin + 1) * binSize)
+                        {
+                            preferencesOfUserQuantilized[indexOfItem_i, indexOfItem_j] = quantilizer[indexOfBin];
+                            break;
+                        }
+                    }
+
+                    preferenceRelationsQuantilized[indexOfUser] = preferencesOfUserQuantilized;
+                }
+            }
+
+            preferenceRelations = preferenceRelationsQuantilized;
+            Utils.WriteMatrix(preferenceRelations[0], "afterQuantilize.csv");
+        }
     }
 }

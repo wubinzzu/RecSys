@@ -109,6 +109,7 @@ namespace RecSys.Numerical
             Utils.WriteMatrix(ratingMatrix, "new.csv");
         }
 
+
         #region Other methods
         // Returns the average of all known ratings
         public double GetGlobalMean()

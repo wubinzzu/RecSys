@@ -214,20 +214,44 @@ namespace RecSys
 
 
             /************************************************************
-             *   Preferecen relations based Non-negative Matrix Factorization
+             *   Orginal Preferecen relations based Non-negative Matrix Factorization
             ************************************************************/
             #region Run preferecen relations based PrefNMF
-            Utils.PrintHeading("Preferecen relations based PrefNMF");
+            Utils.PrintHeading("Orginal Preferecen relations based PrefNMF");
+            if (Utils.Ask())
+            {
+                // Prediction
+                Utils.StartTimer();
+                RatingMatrix R_predicted = PrefNMF.PredictRatings(PR_train, R_unknown, Config.PrefNMF.MaxEpoch, Config.PrefNMF.LearnRate, Config.PrefNMF.RegularizationOfUser, Config.PrefNMF.RegularizationOfItem, Config.PrefNMF.K);
+                Utils.StopTimer();
+
+                // Evaluation
+                //Utils.WriteMatrix(R_predicted.Matrix, "debug.csv");
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+            }
+            #endregion
+
+            /************************************************************
+             *   Positions based Preferecen relations based Non-negative Matrix Factorization
+            ************************************************************/
+            #region Run preferecen relations based PrefNMF
+            Utils.PrintHeading("Positions based Preferecen relations based PrefNMF");
             if (Utils.Ask())
             {
                 // Prediction
                 Utils.StartTimer();
                 // PR_test should be replaced with PR_unknown, but for now it is the same
                 PrefRelations PR_predicted = PrefNMF.PredictPrefRelations(PR_train, PR_test, Config.PrefNMF.MaxEpoch, Config.PrefNMF.LearnRate,  Config.PrefNMF.RegularizationOfUser, Config.PrefNMF.RegularizationOfItem, Config.PrefNMF.K);
+                PR_predicted.Quantilize(1.0, 3, new List<double> { Config.Preferences.LessPreferred, Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });
                 RatingMatrix R_predicted = new RatingMatrix(PR_predicted.GetPositionMatrix());
-                //R_predicted.NormalizeInplace(-1, 1, 0, 1);
-                
-                //RatingMatrix R_predicted = PrefNMF.PredictRatings(PR_train, R_unknown, Config.PrefNMF.MaxEpoch,Config.PrefNMF.LearnRate, Config.PrefNMF.RegularizationOfUser,Config.PrefNMF.RegularizationOfItem, Config.PrefNMF.K);
                 Utils.StopTimer();
 
                 // Evaluation
