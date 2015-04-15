@@ -3,6 +3,7 @@ using MathNet.Numerics.LinearAlgebra.Double;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -143,10 +144,12 @@ namespace RecSys.Ordinal
              *   Make predictions using learned parameters
             ************************************************************/
             #region Make predictions using learned parameters
+            string probabilitiesString = "";
             Parallel.ForEach(R_unknown.EnumerateRowsIndexed(), row =>
             {
                 int indexOfUser = row.Item1;
                 SparseVector unknownRatingsOfUser = (SparseVector)row.Item2;
+                string probabilitiesStringOfUser = "";
 
                 foreach (var unknownRating in unknownRatingsOfUser.EnumerateIndexed(Zeros.AllowSkip))
                 {
@@ -156,7 +159,7 @@ namespace RecSys.Ordinal
                     // This is the ordinal distribution of the current user
                     // given the internal score by MF
                     // e.g. what is the probability of each rating 1-5
-                    Vector<double> probabilitiesByInterval = Vector.Build.Dense(intervalCount);
+                    double[] probabilitiesByInterval = new double[quantizer.Count];
                     double scoreFromScorer = R_scorer[indexOfUser, indexOfItem];
                     double pre = ComputeProbLE(scoreFromScorer, 0, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
                     probabilitiesByInterval[0] = pre;
@@ -169,21 +172,42 @@ namespace RecSys.Ordinal
 
                     // Compute smoothed expectation for RMSE metric
                     double expectationRating = 0.0;
-                    for (int i = 0; i < probabilitiesByInterval.Count; i++)
+                    for (int i = 0; i < probabilitiesByInterval.Length; i++)
                     {
                         expectationRating += (i + 1) * probabilitiesByInterval[i];
                     }
 
                     // TODO: Compute most likely value for MAE metric
 
+
+                    probabilitiesStringOfUser+= string.Format("{0},{1},{2}\n", indexOfUser, indexOfItem, String.Join(",", probabilitiesByInterval.Select(p => p.ToString("0.0000")).ToArray()));
+
                     // Stores the numerical prediction
                     lock (lockMe)
                     {
                         R_predicted[indexOfUser, indexOfItem] = expectationRating;
+                        
+                        if (probabilitiesString.Length > 500000)
+                        {
+                            // Flush and append to file
+                            using (StreamWriter outfile = new StreamWriter("probabilities.txt",true))
+                            {
+                                outfile.Write(probabilitiesString);
+                                probabilitiesString = "";
+                            }
+                        }
                     }
                 }
+
+                probabilitiesString += probabilitiesStringOfUser;
             });
+            // Flush and append to file
+            using (StreamWriter outfile = new StreamWriter("probabilities.txt", true))
+            {
+                outfile.Write(probabilitiesString);
+            }
             #endregion
+
 
             return R_predicted;
         }
