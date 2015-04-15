@@ -488,19 +488,19 @@ count + (rating == Config.Preferences.EquallyPreferred ? 1 : 0), 0.0));
         /// </summary>
         /// <param name="range"></param>
         /// <param name="binCount"></param>
-        /// <param name="quantilizer"></param>
-        public void Quantilize(double range, int binCount, List<double> quantilizer)
+        /// <param name="quantizer"></param>
+        public void quantization(double min, double range, List<double> quantizer)
         {
-            Dictionary<int, SparseMatrix> preferenceRelationsQuantilized
+            Dictionary<int, SparseMatrix> preferenceRelationsquantizationd
                 = new Dictionary<int, SparseMatrix>(preferenceRelations.Count);
-
+            int binCount = quantizer.Count;
             double binSize = range / binCount;
-            Utils.WriteMatrix(preferenceRelations[0], "beforeQuantilize.csv");
+            Utils.WriteMatrix(preferenceRelations[0], "beforequantization.csv");
             foreach(var pair in preferenceRelations)
             {
                 int indexOfUser = pair.Key;
                 SparseMatrix preferencesOfUser = pair.Value;
-                SparseMatrix preferencesOfUserQuantilized = new SparseMatrix(preferencesOfUser.RowCount);
+                SparseMatrix preferencesOfUserquantizationd = new SparseMatrix(preferencesOfUser.RowCount);
                 foreach (var element in preferencesOfUser.EnumerateIndexed(Zeros.AllowSkip))
                 {
                     int indexOfItem_i = element.Item1;
@@ -508,19 +508,19 @@ count + (rating == Config.Preferences.EquallyPreferred ? 1 : 0), 0.0));
                     double preference = element.Item3;
                     for (int indexOfBin = 0; indexOfBin < binCount; indexOfBin++)
                     {
-                        if (preference < (indexOfBin + 1) * binSize)
+                        if (preference < (indexOfBin + 1) * binSize + min)
                         {
-                            preferencesOfUserQuantilized[indexOfItem_i, indexOfItem_j] = quantilizer[indexOfBin];
+                            preferencesOfUserquantizationd[indexOfItem_i, indexOfItem_j] = quantizer[indexOfBin];
                             break;
                         }
                     }
 
-                    preferenceRelationsQuantilized[indexOfUser] = preferencesOfUserQuantilized;
+                    preferenceRelationsquantizationd[indexOfUser] = preferencesOfUserquantizationd;
                 }
             }
 
-            preferenceRelations = preferenceRelationsQuantilized;
-            Utils.WriteMatrix(preferenceRelations[0], "afterQuantilize.csv");
+            preferenceRelations = preferenceRelationsquantizationd;
+            Utils.WriteMatrix(preferenceRelations[0], "afterquantization.csv");
         }
     }
 }

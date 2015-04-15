@@ -28,7 +28,7 @@ namespace RecSys.Ordinal
         /// both the R_train and R_unknown sets</param>
         /// <returns>The predicted ratings on R_unknown</returns>
         #region PredictRatings
-        public static SparseMatrix PredictRatings(SparseMatrix R_train, SparseMatrix R_unknown, SparseMatrix R_scorer)
+        public static SparseMatrix PredictRatings(SparseMatrix R_train, SparseMatrix R_unknown, SparseMatrix R_scorer, List<double> quantizer)
         {
             /************************************************************
              *   Parameterization and Initialization
@@ -41,7 +41,6 @@ namespace RecSys.Ordinal
             double maxEpoch = Config.OMF.MaxEpoch;
             double learnRate = Config.OMF.LearnRate;
             double regularization = Config.OMF.Regularization;
-            List<double> quantizer = Config.OMF.quantizerValues;
             int intervalCount = quantizer.Count;
             int userCount = R_train.RowCount;
 
@@ -104,6 +103,7 @@ namespace RecSys.Ordinal
                     {
                         double ratingFromRTrain = ratingsFromRTrain[i];
                         double ratingFromScorer = ratingsFromScorer[i];
+
                         int r = quantizer.IndexOf(ratingFromRTrain);    // r is the interval that the rating falls into
                         double probLE_r = ComputeProbLE(ratingFromScorer, r, t1, betas);   // Eq. 9
                         double probLE_r_minus_1 = ComputeProbLE(ratingFromScorer, r - 1, t1, betas);

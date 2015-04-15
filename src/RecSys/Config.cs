@@ -27,8 +27,6 @@ namespace RecSys
 
         public class OMF
         {
-            public static readonly List<double> quantizerValues 
-                = new List<double> { 1, 2, 3, 4, 5 };
             public static readonly int MaxEpoch = 1000;
             public static readonly double LearnRate = 0.001;
             public static readonly double Regularization = 0.015;
@@ -74,6 +72,8 @@ namespace RecSys
             public static readonly double Preferred = 3;
             public static readonly double EquallyPreferred = 2;
             public static readonly double LessPreferred = 1;
+            public static readonly List<double> quantizerFive = new List<double> { 1, 2, 3, 4, 5 };
+            public static readonly List<double> quantizerThree = new List<double> { 1, 2, 3};
         }
 
         public class KNN

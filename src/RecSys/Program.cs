@@ -191,7 +191,8 @@ namespace RecSys
                 Utils.PrintHeading("Ordinal Matrix Factorization with NMF as scorer");
                 Utils.StartTimer();
                 RatingMatrix R_predicted = new RatingMatrix(
-                    OMF.PredictRatings(R_train.Matrix, R_unknown.Matrix, R_predictedByNMF.Matrix)
+                    OMF.PredictRatings(R_train.Matrix, R_unknown.Matrix, R_predictedByNMF.Matrix, 
+            Config.Preferences.quantizerFive)
                     );
                 Utils.StopTimer();
 
@@ -211,6 +212,62 @@ namespace RecSys
                 //Utils.Pause();
             }
             #endregion
+
+
+            /************************************************************
+             *   Ordinal Matrix Factorization with PrefNMF as scorer
+            ************************************************************/
+            #region Run Ordinal Matrix Factorization with NMF as scorer
+            Utils.PrintHeading("Train PrefNMF as scorer for OMF");
+            if (Utils.Ask())
+            {
+                // Get ratings from scorer, for both train and test
+                // R_all contains indexes of all ratings both train and test
+                RatingMatrix R_all = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+                R_all.MergeNonOverlap(R_unknown);
+                R_all.MergeNonOverlap(R_train.IndexesOfNonZeroElements());
+                PrefRelations PR_unknown = PrefRelations.CreateDiscrete(R_all);
+
+                // Prediction
+                Utils.StartTimer();
+                // PR_test should be replaced with PR_unknown, but for now it is the same
+                PrefRelations PR_predicted = PrefNMF.PredictPrefRelations(PR_train, PR_unknown, Config.PrefNMF.MaxEpoch, Config.PrefNMF.LearnRate, Config.PrefNMF.RegularizationOfUser, Config.PrefNMF.RegularizationOfItem, Config.PrefNMF.K);
+
+                // Both predicted and train need to be quantized
+                // otherwise OMF won't accept
+                PR_predicted.quantization(0, 1.0, new List<double> { Config.Preferences.LessPreferred, Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });
+                RatingMatrix R_predictedByPrefNMF = new RatingMatrix(PR_predicted.GetPositionMatrix());
+
+                // PR_train itself is already in quantized form!
+                //PR_train.quantization(0, 1.0, new List<double> { Config.Preferences.LessPreferred, Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });
+                RatingMatrix R_train_positions = new RatingMatrix(PR_train.GetPositionMatrix());
+                R_train_positions.Quantization(1,  2, new List<double> { 1, 2, 3 });
+                Utils.StopTimer();
+
+                // Prediction
+                Utils.PrintHeading("Ordinal Matrix Factorization with PrefNMF as scorer");
+                Utils.StartTimer();
+                RatingMatrix R_predicted = new RatingMatrix(
+                    OMF.PredictRatings(R_train_positions.Matrix, R_unknown.Matrix, R_predictedByPrefNMF.Matrix,
+            Config.Preferences.quantizerThree)
+                    );
+                Utils.StopTimer();
+
+                // Evaluation
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+
+                //Utils.Pause();
+            }
+            #endregion
+
 
 
             /************************************************************
@@ -250,7 +307,7 @@ namespace RecSys
                 Utils.StartTimer();
                 // PR_test should be replaced with PR_unknown, but for now it is the same
                 PrefRelations PR_predicted = PrefNMF.PredictPrefRelations(PR_train, PR_test, Config.PrefNMF.MaxEpoch, Config.PrefNMF.LearnRate,  Config.PrefNMF.RegularizationOfUser, Config.PrefNMF.RegularizationOfItem, Config.PrefNMF.K);
-                PR_predicted.Quantilize(1.0, 3, new List<double> { Config.Preferences.LessPreferred, Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });
+                PR_predicted.quantization(0, 1.0, new List<double> { Config.Preferences.LessPreferred, Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });
                 RatingMatrix R_predicted = new RatingMatrix(PR_predicted.GetPositionMatrix());
                 Utils.StopTimer();
 

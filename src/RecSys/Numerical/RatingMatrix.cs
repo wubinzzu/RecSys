@@ -164,5 +164,35 @@ namespace RecSys.Numerical
             Debug.Assert(count + matrix.Matrix.NonZerosCount == ratingMatrix.NonZerosCount);
         }
         #endregion
+
+
+
+        public void Quantization(double min, double range, List<double> quantizer)
+        {
+            SparseMatrix ratingMatrixQuantized = new SparseMatrix(UserCount, ItemCount);
+
+            int binCount = quantizer.Count;
+            double binSize = range / binCount;
+            Utils.WriteMatrix(ratingMatrix, "beforequantization.csv");
+
+
+            foreach (var element in ratingMatrix.EnumerateIndexed(Zeros.AllowSkip))
+            {
+                int indexOfUser = element.Item1;
+                int indexOfItem = element.Item2;
+                double value = element.Item3;
+                for (int indexOfBin = 0; indexOfBin < binCount; indexOfBin++)
+                {
+                    if (value < (indexOfBin + 1) * binSize + min)
+                    {
+                        ratingMatrixQuantized[indexOfUser, indexOfItem] = quantizer[indexOfBin];
+                        break;
+                    }
+                }
+            }
+            ratingMatrix = ratingMatrixQuantized;
+
+            Utils.WriteMatrix(ratingMatrix, "afterquantization.csv");
+        }
     }
 }
