@@ -230,22 +230,22 @@ namespace RecSysUnitTest
 
                 // assert
                 // Check first user
-                Debug.Assert(positionsOfUserFirst[0] == 1);
-                Debug.Assert(positionsOfUserFirst[1] == Config.ZeroInSparseMatrix); // It is actually a value 0
+                Debug.Assert(positionsOfUserFirst[0] == 1+Config.Preferences.PositionShift);
+                Debug.Assert(positionsOfUserFirst[1] == 0+Config.Preferences.PositionShift);
                 Debug.Assert(positionsOfUserFirst[2] == SparseMatrix.Zero);
-                Debug.Assert(positionsOfUserFirst[3] == -1);
+                Debug.Assert(positionsOfUserFirst[3] == -1 + Config.Preferences.PositionShift);
 
                 // Check third user
-                Debug.Assert(positionsOfUserThird[0] == -0.5);
-                Debug.Assert(positionsOfUserThird[1] == -0.5);
+                Debug.Assert(positionsOfUserThird[0] == -0.5 + Config.Preferences.PositionShift);
+                Debug.Assert(positionsOfUserThird[1] == -0.5 + Config.Preferences.PositionShift);
                 Debug.Assert(positionsOfUserThird[2] == SparseMatrix.Zero);
-                Debug.Assert(positionsOfUserThird[3] == 1);
+                Debug.Assert(positionsOfUserThird[3] == 1 + Config.Preferences.PositionShift);
 
                 // Check second last user
                 Debug.Assert(positionsOfUserLast[0] == SparseMatrix.Zero);
-                Debug.Assert(positionsOfUserLast[1] == -1);
-                Debug.Assert(positionsOfUserLast[2] == 1);
-                Debug.Assert(positionsOfUserLast[3] == Config.ZeroInSparseMatrix); // It is actually a value 0
+                Debug.Assert(positionsOfUserLast[1] == -1 + Config.Preferences.PositionShift);
+                Debug.Assert(positionsOfUserLast[2] == 1 + Config.Preferences.PositionShift);
+                Debug.Assert(positionsOfUserLast[3] == 0 + Config.Preferences.PositionShift);
 
                 // The number of positions should match the number of ratings by each user
                 Debug.Assert(positionsOfUserFirst.GetNonZerosCount()
@@ -296,38 +296,40 @@ namespace RecSysUnitTest
             }
             #endregion
 
+
+            /*
             #region Generate top N recommendation for each user
             [TestMethod]
             public void RecommendTopN()
             {
-                /*
-                 * 5  3  0  1
-                 * 4  0  0  1
-                 * 1  1  0  5
-                 * 1  0  0  4
-                 * 0  1  5  4
-                 */
+                //
+                 // 5  3  0  1
+                 // 4  0  0  1
+                 // 1  1  0  5
+                 // 1  0  0  4
+                 // 0  1  5  4
+                 
                 RatingMatrix R = GetSampleRatingMatrix();
                 PrefRelations PR = PrefRelations.CreateDiscrete(R);
                 List<int> targetUsers = new List<int> { 0, 1, 2, 3, 4 };
 
-                /*
-                       1  1E-14  0     -1
-                       1      0  0     -1
-                    -0.5   -0.5  0      1
-                      -1      0  0      1
-                       0     -1  1  1E-14
-                 */
+               
+                //       1  1E-14  0     -1
+                 //      1      0  0     -1
+                 //   -0.5   -0.5  0      1
+                 //     -1      0  0      1
+                 //      0     -1  1  1E-14
+               
                 SparseMatrix positionMatrix = PR.GetPositionMatrix();
 
 
-                /*
-                             1   0.774291  -0.186441  -0.178683  -0.978839
-                      0.774291          1  0.0198536   0.162791  -0.628768
-                     -0.186441  0.0198536          1   0.972828   0.221028
-                     -0.178683   0.162791   0.972828          1   0.258904
-                     -0.978839  -0.628768   0.221028   0.258904          1
-                 */
+                
+//1   0.774291  -0.186441  -0.178683  -0.978839
+                //      0.774291          1  0.0198536   0.162791  -0.628768
+                 //    -0.186441  0.0198536          1   0.972828   0.221028
+                 //    -0.178683   0.162791   0.972828          1   0.258904
+//-0.978839  -0.628768   0.221028   0.258904          1
+               
                 Matrix<double> userSimilarities = Metric.GetPearsonOfRows(R);
 
                 // act
@@ -348,7 +350,8 @@ namespace RecSysUnitTest
                 Debug.Assert(topNItemsByUser[0][3] == 3);
             }
             #endregion
-        }
+             * */
+    }
         #endregion
 
     }

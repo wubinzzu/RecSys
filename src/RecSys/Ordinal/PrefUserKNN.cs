@@ -68,10 +68,11 @@ namespace RecSys.Ordinal
                         // We count only if the neighbor has seen this item before
                         if (itemPositionOfNeighbor != 0)
                         {
-                            // Recall that we use a small constant to hold 0
+                            // Recall that we use a constant to hold position value 0
                             // we revert it back here
                             if (itemPositionOfNeighbor == Config.ZeroInSparseMatrix)
                             {
+                                Debug.Assert(true, "By using the PositionShift constant, we should not be in here.");
                                 itemPositionOfNeighbor = 0;
                             }
                             weightSum += similarityOfNeighbor;

@@ -191,6 +191,72 @@ namespace RecSys.Ordinal
 
         #region CreateScalar
         // TODO: Scalar preference relations based on Bradley-Terry model
+        public static PrefRelations CreateScalar(RatingMatrix R)
+        {
+            int userCount = R.UserCount;
+            int itemCount = R.ItemCount;
+            PrefRelations PR = new PrefRelations(itemCount);
+
+            // Create a preference matrix for each user
+            Object lockMe = new Object();
+            Parallel.ForEach(R.Users, user =>
+            {
+                int userIndex = user.Item1;
+                RatingVector userRatings = new RatingVector(user.Item2);
+
+                Utils.PrintEpoch("Doing user/total", userIndex, userCount);
+
+                // The diagonal refer to the i-i item pair
+                SparseMatrix userPreferences = new SparseMatrix(itemCount);
+
+                // The diagonal is left empty!
+                //SparseMatrix.OfMatrix(Matrix.Build.SparseDiagonal(itemCount, Config.Preferences.EquallyPreferred));
+
+                // TODO: Use Vector.Map2 to replace the following two foreach loops
+
+                // Here we need to compare each pair of items rated by this user
+                foreach (Tuple<int, double> left in userRatings.Ratings)
+                {
+                    int leftItemIndex = left.Item1;
+                    double leftItemRating = left.Item2;
+
+                    foreach (Tuple<int, double> right in userRatings.Ratings)
+                    {
+                        int rightItemIndex = right.Item1;
+
+                        // TODO: We could compute only the lower triangular, 
+                        // and uppwer will be a negative mirror
+                        // Let's do it directly at this stage
+                        double rightItemRating = right.Item2;
+
+                        Debug.Assert(rightItemRating != 0 && leftItemRating != 0);
+
+                        // Skip the diagonal
+                        if (leftItemIndex == rightItemIndex) { continue; }
+
+                        userPreferences[leftItemIndex, rightItemIndex] = 0.1 * (leftItemRating - rightItemRating + 5);//(double)leftItemRating / (leftItemRating + rightItemRating);
+                    }
+                }
+
+                // Because pr's upper triangular should be a mirror of the lower triangular
+                Debug.Assert((userPreferences.NonZerosCount).IsEven());
+                double debug1 = (Math.Pow(((SparseVector)R.GetRow(userIndex)).NonZerosCount, 2)
+                    - ((SparseVector)R.GetRow(userIndex)).NonZerosCount);
+                double debug2 = userPreferences.NonZerosCount;
+                Debug.Assert(debug1 == debug2);
+
+                lock (lockMe)
+                {
+                    // Copy similarity values from lower triangular to upper triangular
+                    //pr_uid = DenseMatrix.OfMatrix(pr_uid + pr_uid.Transpose() - DenseMatrix.CreateIdentity(pr_uid.RowCount));
+                    PR[userIndex] = userPreferences;
+                }
+            });
+
+
+
+            return PR;
+        }
         #endregion
 
         #region PreferencesToPositions
@@ -204,6 +270,9 @@ namespace RecSys.Ordinal
         public Vector<double> PreferencesToPositions(SparseMatrix userPreferences)
         {
             // Count for each preference type
+            // Actually the original paper count the strict preferred and less preferred by exact match
+            // but here we just compare with the EquallyPreferred, because the preferences can be 
+            // scalar with Bradley-Terry model. However, it won't affect the result when it is discrete preference relations.
             SparseVector preferredCountByItem = SparseVector.OfEnumerable(userPreferences.FoldByRow((count, pref) =>
                     count + (pref == Config.Preferences.Preferred ? 1 : 0), 0.0));
 
@@ -214,23 +283,37 @@ namespace RecSys.Ordinal
             // otherwise the equally count needs to be offset by 1 for each, i.e. item itself does not count
             Debug.Assert(userPreferences.Trace() == 0);
             SparseVector equallyPreferredCountByItem = SparseVector.OfEnumerable(userPreferences.FoldByRow((count, pref) =>
-                    count + (pref == Config.Preferences.EquallyPreferred ? 1 : 0), 0.0));
+                    count + (pref == Config.Preferences.EquallyPreferred  ? 1 : 0), 0.0));
 
             // Note that if the position is value zero then it won't appear in  positionByItem
             // because the use of SparseVector.OfVector() will ignore all zero values
             Vector<double> positionByItem =
-                (preferredCountByItem - lessPreferredCountByItem)
-                .PointwiseDivide(lessPreferredCountByItem + preferredCountByItem + equallyPreferredCountByItem);
+     (preferredCountByItem - lessPreferredCountByItem)
+     .PointwiseDivide(lessPreferredCountByItem + preferredCountByItem + equallyPreferredCountByItem) + Config.Preferences.PositionShift;
 
-            // TODO: May improve later. Now I want to make sure that 0 values do appear in the positionByItem,
-            // so a very small value is used to indicate value 0 in sparse matrix
+            Vector<double> indicatorOfSeenItems = userPreferences.RowSums();    // If zero, then this item has never been seen
+            for(int i = 0; i < indicatorOfSeenItems.Count; i++)
+            {
+                if(indicatorOfSeenItems[i] == 0)
+                {
+                    positionByItem[i] = SparseVector.Zero;
+                }
+            }
+
+            //+Config.Preferences.PositionShift;
+
+            // TODO: May improve later. Some items have position 0 and we dont want to mix
+            // up the position 0 and the 0 in sparsematrix.
+            // So we use a constant to hold the space for position value 0
+            // it should be reverted back when use
             Vector<double> indicatorVector = userPreferences.RowSums();
             for (int i = 0; i < indicatorVector.Count; i++)
             {
-                if (indicatorVector[i] != 0 && positionByItem[i] == SparseVector.Zero)
-                {
-                    positionByItem[i] = Config.ZeroInSparseMatrix;
-                }
+                //if (indicatorVector[i] != 0 && positionByItem[i] != 0)
+                //{
+                //    Debug.Assert(true, "By using the PositionShift constant, we should not be in here.");
+                 //   positionByItem[i] = Config.ZeroInSparseMatrix;
+               // }
             }
 
             return positionByItem;

@@ -20,7 +20,58 @@ namespace RecSys.Ordinal
     public class PrefNMF
     {
         public static RatingMatrix PredictRatings(PrefRelations PR_train, RatingMatrix R_unknown,
+           int maxEpoch, double learnRate, double regularizationOfUser, double regularizationOfItem, int factorCount)
+        {
+            // Latent features
+            Matrix<double> P;
+            Matrix<double> Q;
+
+            LearnLatentFeatures(PR_train, maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount, out P, out Q);
+
+            RatingMatrix R_predicted = new RatingMatrix(R_unknown.Matrix.PointwiseMultiply(P.Multiply(Q)));
+            // TODO: should we do this? should we put it into [0,1]??? Seems zero entries are also converted into 0.5!Normalize the result
+            //R_predicted.Matrix.MapInplace(x => RecSys.Core.SpecialFunctions.InverseLogit(x), Zeros.AllowSkip);
+            return R_predicted;
+        }
+
+        public static PrefRelations PredictPrefRelations(PrefRelations PR_train, PrefRelations PR_unknown,
             int maxEpoch, double learnRate, double regularizationOfUser, double regularizationOfItem, int factorCount)
+        {
+            // Latent features
+            Matrix<double> P;
+            Matrix<double> Q;
+
+            LearnLatentFeatures(PR_train, maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount, out P, out Q);
+
+            PrefRelations PR_predicted = new PrefRelations(PR_unknown.ItemCount);
+
+            Object lockMe = new Object();
+            Parallel.ForEach(PR_unknown.PreferenceRelationsByUser, pair =>
+            {
+                int indexOfUser = pair.Key;
+                SparseMatrix unknownPreferencesOfUser = pair.Value;
+                SparseMatrix predictedPreferencesOfUser = new SparseMatrix(unknownPreferencesOfUser.RowCount, unknownPreferencesOfUser.ColumnCount);
+
+                // Predict each unknown preference
+                foreach(var unknownPreference in unknownPreferencesOfUser.EnumerateIndexed(Zeros.AllowSkip))
+                {
+                    int indexOfItem_i = unknownPreference.Item1;
+                    int indexOfItem_j = unknownPreference.Item2;
+                    double estimate_uij = P.Row(indexOfUser).DotProduct(Q.Column(indexOfItem_i) - Q.Column(indexOfItem_j));   // Eq. 2
+                    double normalized_estimate_uij = Core.SpecialFunctions.InverseLogit(estimate_uij);   // pi_uij in paper
+                    predictedPreferencesOfUser[indexOfItem_i, indexOfItem_j] = normalized_estimate_uij;
+                }
+
+                lock(lockMe)
+                {
+                    PR_predicted[indexOfUser] = predictedPreferencesOfUser;
+                }
+            });
+
+            return PR_predicted;
+        }
+
+        private static void LearnLatentFeatures(PrefRelations PR_train, int maxEpoch, double learnRate, double regularizationOfUser, double regularizationOfItem, int factorCount, out Matrix<double> P, out Matrix<double> Q)
         {
             //regularizationOfUser = 0;
             //regularizationOfItem = 0;
@@ -29,9 +80,9 @@ namespace RecSys.Ordinal
             int prefCount = PR_train.GetTotalPrefRelationsCount();
 
             // User latent vectors with default seed
-            Matrix<double> P = Utils.CreateRandomMatrix(userCount, factorCount, Config.Seed);
+            P = Utils.CreateRandomMatrix(userCount, factorCount, Config.Seed);
             // Item latent vectors with a different seed
-            Matrix<double> Q = Utils.CreateRandomMatrix(factorCount, itemCount, Config.Seed + 1);
+            Q = Utils.CreateRandomMatrix(factorCount, itemCount, Config.Seed + 1);
 
             // SGD
             double previousErrorSum = long.MaxValue;
@@ -55,7 +106,13 @@ namespace RecSys.Ordinal
                         //Console.WriteLine(preferenceRelationsOfUser[indexOfItem_j, indexOfItem_i]);
                         if (indexOfItem_i >= indexOfItem_j) continue;
 
-                        double prefRelation_uij = entry.Item3;
+                        // Warning: here we need to convert the customized preference indicators
+                        // from 1,2,3 into 0,0.5,1 for match the scale of predicted pi, which is in range [0,1] 
+                        double prefRelation_uij = 0;
+                        if(entry.Item3 == Config.Preferences.Preferred){prefRelation_uij = 1.0;}
+                        else if (entry.Item3 == Config.Preferences.EquallyPreferred){prefRelation_uij = 0.5;}
+                        else if (entry.Item3 == Config.Preferences.LessPreferred){prefRelation_uij = 0.0;}
+                        else{Debug.Assert(true, "Should not be here.");}
 
                         // TODO: Maybe it can be faster to do two dot products to remove the substraction (lose sparse  property I think)
                         double estimate_uij = P.Row(indexOfUser).DotProduct(Q.Column(indexOfItem_i) - Q.Column(indexOfItem_j));   // Eq. 2
@@ -74,7 +131,7 @@ namespace RecSys.Ordinal
                         double e_uij = prefRelation_uij - normalized_estimate_uij;
                         //double e_uij = Math.Pow(prefRelation_uij - normalized_estimate_uij, 2) ;  // from Eq. 3&6
                         double e_uij_derivative = (e_uij * normalized_estimate_uij) / (1 + exp_estimate_uij);
-                        
+
                         // Update feature vectors
                         Vector<double> P_u = P.Row(indexOfUser);
                         Vector<double> Q_i = Q.Column(indexOfItem_i);
@@ -99,7 +156,7 @@ namespace RecSys.Ordinal
                         double e_uij_updated = prefRelation_uij - normalized_estimate_uij_updated;  // from Eq. 3&6
 
                         //double debug1 = Math.Abs(e_uij) - Math.Abs(e_uij_updated);
-                       // Debug.Assert(debug1 > 0);    // After update the error should be smaller
+                        // Debug.Assert(debug1 > 0);    // After update the error should be smaller
 
                         #region Loop version of gradient update
                         /*
@@ -124,7 +181,7 @@ namespace RecSys.Ordinal
                 // Display the current regularized error see if it converges
                 double currentErrorSum = 0;
                 //if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
-                if(true)
+                if (true)
                 {
                     double eSum = 0;
                     foreach (var pair in PR_train.PreferenceRelationsByUser)
@@ -140,7 +197,11 @@ namespace RecSys.Ordinal
 
                             if (indexOfItem_i >= indexOfItem_j) continue;
 
-                            double prefRelation_uij = entry.Item3;
+                            double prefRelation_uij = 0;
+                            if (entry.Item3 == Config.Preferences.Preferred) { prefRelation_uij = 1.0; }
+                            else if (entry.Item3 == Config.Preferences.EquallyPreferred) { prefRelation_uij = 0.5; }
+                            else if (entry.Item3 == Config.Preferences.LessPreferred) { prefRelation_uij = 0.0; }
+                            else { Debug.Assert(true, "Should not be here."); }
 
                             // TODO: Maybe it can be faster to do two dot products to remove the substraction (lose sparse  property I think)
                             double estimate_uij = P.Row(indexOfUser).DotProduct(Q.Column(indexOfItem_i) - Q.Column(indexOfItem_j));   // Eq. 2
@@ -149,10 +210,10 @@ namespace RecSys.Ordinal
 
                             // Sum the regularization term
                             //for (int k = 0; k < factorCount; ++k)
-                           // {
-                           //     eSum += (regularizationOfUser * 0.5) * (Math.Pow(P[indexOfUser, k], 2)
-                           //         + Math.Pow(Q[k, indexOfItem_i], 2) + Math.Pow(Q[k, indexOfItem_j], 2));
-                           // }
+                            // {
+                            //     eSum += (regularizationOfUser * 0.5) * (Math.Pow(P[indexOfUser, k], 2)
+                            //         + Math.Pow(Q[k, indexOfItem_i], 2) + Math.Pow(Q[k, indexOfItem_j], 2));
+                            // }
                         }
                     }
                     double regularizationPenaty = regularizationOfUser * P.SquaredSum();
@@ -174,7 +235,7 @@ namespace RecSys.Ordinal
                     previousErrorSum = currentErrorSum;
                 }
             }
-            return new RatingMatrix(R_unknown.Matrix.PointwiseMultiply(P.Multiply(Q)));
+
         }
     }
 }

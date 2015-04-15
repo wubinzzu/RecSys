@@ -70,6 +70,8 @@ namespace RecSys
             Utils.StartTimer();
             Utils.PrintHeading("Prepare preferecen relation data");
             PrefRelations PR_train = PrefRelations.CreateDiscrete(R_train);
+            PrefRelations PR_test = PrefRelations.CreateDiscrete(R_test);
+            //PrefRelations PR_train = PrefRelations.CreateScalar(R_train);
             Utils.StopTimer();
             #endregion
 
@@ -142,10 +144,10 @@ namespace RecSys
              *   Rating based Non-negative Matrix Factorization
             ************************************************************/
             #region Run rating based NMF
-            if (Config.RunNMF)
+            Utils.PrintHeading("Rating based NMF");
+            if (Utils.Ask())
             {
                 // Prediction
-                Utils.PrintHeading("Rating based NMF");
                 Utils.StartTimer();
                 RatingMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, Config.NMF.MaxEpoch,
                     Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
@@ -164,7 +166,7 @@ namespace RecSys
                     Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
                 }
 
-                Utils.Pause();
+                //Utils.Pause();
             }
             #endregion
 
@@ -173,10 +175,9 @@ namespace RecSys
              *   Ordinal Matrix Factorization with NMF as scorer
             ************************************************************/
             #region Run Ordinal Matrix Factorization with NMF as scorer
-            if (false)
+            Utils.PrintHeading("Train NMF as scorer for OMF");
+            if (Utils.Ask())
             {
-                Utils.PrintHeading("Train NMF as scorer for OMF");
-
                 // Get ratings from scorer, for both train and test
                 // R_all contains indexes of all ratings both train and test
                 RatingMatrix R_all = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
@@ -207,7 +208,7 @@ namespace RecSys
                     Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
                 }
 
-                Utils.Pause();
+                //Utils.Pause();
             }
             #endregion
 
@@ -216,18 +217,22 @@ namespace RecSys
              *   Preferecen relations based Non-negative Matrix Factorization
             ************************************************************/
             #region Run preferecen relations based PrefNMF
-            if (Config.RunPrefNMF==true)
+            Utils.PrintHeading("Preferecen relations based PrefNMF");
+            if (Utils.Ask())
             {
                 // Prediction
-                Utils.PrintHeading("Preferecen relations based PrefNMF");
                 Utils.StartTimer();
-                RatingMatrix R_predicted = PrefNMF.PredictRatings(PR_train, R_unknown, Config.PrefNMF.MaxEpoch,
-                    Config.PrefNMF.LearnRate, Config.PrefNMF.RegularizationOfUser, 
-                    Config.PrefNMF.RegularizationOfItem, Config.PrefNMF.K);
+                // PR_test should be replaced with PR_unknown, but for now it is the same
+                PrefRelations PR_predicted = PrefNMF.PredictPrefRelations(PR_train, PR_test, Config.PrefNMF.MaxEpoch, Config.PrefNMF.LearnRate,  Config.PrefNMF.RegularizationOfUser, Config.PrefNMF.RegularizationOfItem, Config.PrefNMF.K);
+                RatingMatrix R_predicted = new RatingMatrix(PR_predicted.GetPositionMatrix());
+                //R_predicted.NormalizeInplace(-1, 1, 0, 1);
+                
+                //RatingMatrix R_predicted = PrefNMF.PredictRatings(PR_train, R_unknown, Config.PrefNMF.MaxEpoch,Config.PrefNMF.LearnRate, Config.PrefNMF.RegularizationOfUser,Config.PrefNMF.RegularizationOfItem, Config.PrefNMF.K);
                 Utils.StopTimer();
 
                 // Evaluation
-                R_predicted.Matrix.MapInplace(x => RecSys.Core.SpecialFunctions.InverseLogit(x), Zeros.AllowSkip);
+                //R_predicted.Matrix.MapInplace(x => RecSys.Core.SpecialFunctions.InverseLogit(x), Zeros.AllowSkip);
+                Utils.WriteMatrix(R_predicted.Matrix, "debug.csv");
                 var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
                 for (int n = 1; n <= Config.TopN; n++)
                 {
@@ -237,8 +242,6 @@ namespace RecSys
                 {
                     Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
                 }
-
-                Utils.Pause();
             }
             #endregion
 
@@ -247,10 +250,10 @@ namespace RecSys
              *   Rating based UserKNN
             ************************************************************/
             #region Run rating based UserKNN
-            if (Config.RunRatingUserKNN)
+            Utils.PrintHeading("Rating based User KNN");
+            if (Utils.Ask())
             {
                 // Prediction
-                Utils.PrintHeading("Rating based User KNN");
                 Utils.StartTimer();
                 RatingMatrix R_predicted = UserKNN.PredictRatings(R_train, R_unknown, Config.KNN.K);
                 Utils.StopTimer();
@@ -268,7 +271,7 @@ namespace RecSys
                     Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
                 }
 
-                Utils.Pause();
+                //Utils.Pause();
             }
             #endregion
 
@@ -278,16 +281,16 @@ namespace RecSys
              *   Preference relation based UserKNN
             ************************************************************/
             #region Run preference relation based UserKNN
-            if (Config.RunPreferenceUserKNN)
+            if (Utils.Ask())
             {
                 // Prediction
                 Utils.PrintHeading("Preference relation based UserKNN");
                 Utils.StartTimer();
-                RatingMatrix PR_predicted = PrefUserKNN.PredictRatings(PR_train, R_unknown, Config.KNN.K);
+                RatingMatrix R_predicted = PrefUserKNN.PredictRatings(PR_train, R_unknown, Config.KNN.K);
                 Utils.StopTimer();
 
                 // Evaluation
-                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(PR_predicted, Config.TopN);
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
                 for (int n = 1; n <= Config.TopN; n++)
                 {
                     Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));

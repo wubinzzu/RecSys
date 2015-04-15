@@ -86,6 +86,29 @@ namespace RecSys.Numerical
         }
         #endregion
 
+        /// <summary>
+        /// Normalize the values into min-max interval
+        /// </summary>
+        /// <param name="min"></param>
+        /// <param name="max"></param>
+        public void NormalizeInplace(double oldMin, double oldMax, double newMin, double newMax)
+        {
+            SparseMatrix ratingMatrixNormalized = new SparseMatrix(UserCount, ItemCount);
+            foreach(var element in ratingMatrix.EnumerateIndexed(Zeros.AllowSkip))
+            {
+                int indexOfUser = element.Item1;
+                int indexOfItem = element.Item2;
+                double value = element.Item3;
+                ratingMatrixNormalized[indexOfUser, indexOfItem] = ((newMax - newMin) * 
+                    (value==Config.ZeroInSparseMatrix?0:value - oldMin) / (oldMax - oldMin) + newMin);
+            }
+            Utils.WriteMatrix(ratingMatrix, "old.csv");
+            //TODO: Check why MapInplace will change zero elements??
+            //ratingMatrix.MapInplace(x => x = ((toMax - toMin) * (x - min) / (max - min) + toMin), Zeros.AllowSkip;
+            ratingMatrix = ratingMatrixNormalized;
+            Utils.WriteMatrix(ratingMatrix, "new.csv");
+        }
+
         #region Other methods
         // Returns the average of all known ratings
         public double GetGlobalMean()

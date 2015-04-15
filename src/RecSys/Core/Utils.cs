@@ -269,6 +269,23 @@ namespace RecSys
             Console.SetCursorPosition(0, Console.CursorTop - 2);
             Console.Write(new String(' ', Console.BufferWidth));
         }
+
+        public static bool Ask()
+        {
+            Console.WriteLine("\nPress 'S' to skip or any key to run...");
+            ConsoleKeyInfo key = Console.ReadKey();
+            if (key.Key == ConsoleKey.S)
+            {
+                Console.WriteLine("Skipped.");
+                return false;
+            }
+            else
+            {
+                Console.SetCursorPosition(0, Console.CursorTop - 2);
+                Console.Write(new String(' ', Console.BufferWidth));
+                return true;
+            }
+        }
         #endregion
 
         #region Obsolete

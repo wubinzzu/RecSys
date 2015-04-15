@@ -20,7 +20,7 @@ namespace RecSys
         public static readonly bool RunPreferenceUserKNN = true;
         public static readonly bool RunGlobalMean = true;
         public static readonly bool LoadSavedData = true;
-        public static readonly double ZeroInSparseMatrix = 1e-14;
+        public static readonly double ZeroInSparseMatrix = -99;//1e-14;
         public const int MinCountOfRatings = 60;
         public const int CountOfRatingsForTrain = 50;
         public static readonly string[] SplitSeperators = { "\t", "::" };
@@ -50,8 +50,8 @@ namespace RecSys
             public static readonly int K = 30;				// Num of factors
             public static readonly int MaxEpoch = 30;
             public static readonly double LearnRate = 0.001;
-            public static readonly double RegularizationOfUser = 0.05;     // From Desarkar's paper
-            public static readonly double RegularizationOfItem = 0.03;    // From Desarkar's paper
+            public static readonly double RegularizationOfUser = 0.05;
+            public static readonly double RegularizationOfItem = 0.03;
         }
 
         public class Ratings
@@ -68,9 +68,12 @@ namespace RecSys
 
         public class Preferences
         {
-            public static readonly double Preferred = 1;
-            public static readonly double EquallyPreferred = 0.5;
-            public static readonly double LessPreferred = ZeroInSparseMatrix;
+            // The position should be in [-1,1] but due to the difficult of storing 0 in sparse matrix
+            // we shift all position values by 2 so the range becomes [1-3]
+            public static readonly double PositionShift = 2;
+            public static readonly double Preferred = 3;
+            public static readonly double EquallyPreferred = 2;
+            public static readonly double LessPreferred = 1;
         }
 
         public class KNN
