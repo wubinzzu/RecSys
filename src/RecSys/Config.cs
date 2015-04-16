@@ -25,6 +25,11 @@ namespace RecSys
         public const int CountOfRatingsForTrain = 50;
         public static readonly string[] SplitSeperators = { "\t", "::" };
 
+        public static readonly string UserSimilaritiesOfRatingFile = "userSimilaritiesOfRating.csv";
+        public static readonly string UserSimilaritiesOfPrefFile = "userSimilaritiesOfPref.csv";
+        public static readonly string ItemSimilaritiesOfRatingFile = "itemSimilaritiesOfRating.csv";
+        public static readonly string ItemSimilaritiesOfPrefFile = "itemSimilaritiesOfPref.csv";
+
         public class OMF
         {
             public static readonly int MaxEpoch = 1000;
@@ -57,8 +62,6 @@ namespace RecSys
             public static readonly string DataSetFile = "100k.data";
             public static readonly string TrainSetFile = "R_train.csv";
             public static readonly string TestSetFile = "R_test.csv";
-            public static readonly string UserSimilaritiesOfRatingFile = "userSimilaritiesOfRating.csv";
-            public static readonly string UserSimilaritiesOfPrefFile = "userSimilaritiesOfPref.csv";
             public static readonly double RelevanceThreshold = 5.0;   // Only 5-star items are considered as relevant
             public static readonly double MaxRating = 5.0;
             public static readonly double MinRating = 1.0;

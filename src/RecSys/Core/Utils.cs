@@ -288,6 +288,29 @@ namespace RecSys
         }
         #endregion
 
+
+        #region Load OMF
+        public static Dictionary<Tuple<int, int>, double[]> LoadOMFDistributions(string fileName)
+        {
+            Dictionary<Tuple<int, int>, double[]> OMFDistributions = new Dictionary<Tuple<int, int>, double[]>();
+
+            // Read the file to discover the whole matrix structure and mapping
+            foreach (string line in File.ReadLines(fileName))
+            {
+                string[] tokens = line.Split(Config.SplitSeperators, StringSplitOptions.RemoveEmptyEntries);
+                int indexOfUser = int.Parse(tokens[0]);
+                int indexOfItem = int.Parse(tokens[1]);
+                // TODO: make it dynamic later
+                OMFDistributions[new Tuple<int, int>(indexOfUser, indexOfItem)] = new double[] {
+                    double.Parse(tokens[2]),
+                    double.Parse(tokens[3]),
+                    double.Parse(tokens[4])};
+            }
+
+            return OMFDistributions;
+        }
+        #endregion
+
         #region Obsolete
         [Obsolete("LoadMovieLens(string path) is deprecated.")]
         public static RatingMatrix LoadMovieLens(string path)
