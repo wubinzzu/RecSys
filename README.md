@@ -2,6 +2,12 @@
 
 The RecSys library implements different RecSys algorithms described in research papers including mine. The library is written in C# for the .NET platform (https://github.com/Microsoft/dotnet), and runs on Windows, Linux, and MacOS X.
 
+What is special about this library?
+-------------------------
+Most libraries are trying to put all algorithms into a unified framework with deep class inheritance and highly modularized. This will make the libraries very "Object Oriented" and but difficult to read by new users as you will need to jump between multiple files to understand one single algorithm.
+
+The good news is, the RecSys tries to put each algorithm into a single self-contained source file and even implemented in single function when possible. In other words, you only need to open the source file of the algorithm you are interested in and read it from top to bottom in a linear manner.
+
 Implemented Algorithms
 ----------------------
 These algorithms are aimed to be implemented in the same way they are described in the authors' papers, however, differences may still exist.
