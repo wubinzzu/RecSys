@@ -166,7 +166,6 @@ namespace RecSys.Numerical
         #endregion
 
 
-
         public void Quantization(double min, double range, List<double> quantizer)
         {
             SparseMatrix ratingMatrixQuantized = new SparseMatrix(UserCount, ItemCount);
@@ -193,6 +192,26 @@ namespace RecSys.Numerical
             ratingMatrix = ratingMatrixQuantized;
 
             Utils.WriteMatrix(ratingMatrix, "afterquantization.csv");
+        }
+
+
+        public Dictionary<int, List<int>> GetItemsByUser()
+        {
+            Dictionary<int, List<int>> itemsByUser = new Dictionary<int,List<int>>();
+            foreach(var user in ratingMatrix.EnumerateRowsIndexed())
+            {
+                int indexOfUser = user.Item1;
+                SparseVector ratingsOfUser = (SparseVector)user.Item2;
+                List<int> itemsOfUser = new List<int>(ratingsOfUser.NonZerosCount);
+                foreach(var item in ratingsOfUser.EnumerateIndexed(Zeros.AllowSkip))
+                {
+                    itemsOfUser.Add(item.Item1);
+                }
+                Debug.Assert(itemsOfUser.Count == ratingsOfUser.NonZerosCount);
+                itemsByUser[indexOfUser] = itemsOfUser;
+            }
+
+            return itemsByUser;
         }
     }
 }
