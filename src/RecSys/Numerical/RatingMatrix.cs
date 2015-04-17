@@ -24,6 +24,8 @@ namespace RecSys.Numerical
         public int NonZerosCount { get { return ratingMatrix.NonZerosCount; } }
         public double Density { get { return (double)NonZerosCount / (UserCount * ItemCount); } }
         public SparseMatrix Matrix { get { return ratingMatrix; } }
+
+        [Obsolete]
         public Matrix<double> UserSimilarities
         {
             get

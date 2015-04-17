@@ -28,7 +28,8 @@ namespace RecSys.Ordinal
         /// both the R_train and R_unknown sets</param>
         /// <returns>The predicted ratings on R_unknown</returns>
         #region PredictRatings
-        public static SparseMatrix PredictRatings(SparseMatrix R_train, SparseMatrix R_unknown, SparseMatrix R_scorer, List<double> quantizer)
+        public static SparseMatrix PredictRatings(SparseMatrix R_train, SparseMatrix R_unknown, 
+            SparseMatrix R_scorer, List<double> quantizer, string OMFDistributionFile="")
         {
             /************************************************************
              *   Parameterization and Initialization
@@ -178,35 +179,45 @@ namespace RecSys.Ordinal
 
                     // TODO: Compute most likely value for MAE metric
 
+                    if(OMFDistributionFile!="")
+                    {
+                        probabilitiesStringOfUser += string.Format("{0},{1},{2}\n", indexOfUser, indexOfItem, String.Join(",", probabilitiesByInterval.Select(p => p.ToString("0.0000")).ToArray()));
+                        if (probabilitiesString.Length > 500000)
+                        {
+                            lock (lockMe)
+                            {
+                                // Flush and append to file
+                                using (StreamWriter outfile = new StreamWriter(OMFDistributionFile, true))
+                                {
+                                    outfile.Write(probabilitiesString);
+                                    probabilitiesString = "";
+                                }
+                            }
+                        }
+                    }
 
-                    probabilitiesStringOfUser+= string.Format("{0},{1},{2}\n", indexOfUser, indexOfItem, String.Join(",", probabilitiesByInterval.Select(p => p.ToString("0.0000")).ToArray()));
 
                     // Stores the numerical prediction
                     lock (lockMe)
                     {
                         R_predicted[indexOfUser, indexOfItem] = expectationRating;
-                        
-                        if (probabilitiesString.Length > 500000)
-                        {
-                            // Flush and append to file
-                            using (StreamWriter outfile = new StreamWriter("probabilities.txt",true))
-                            {
-                                outfile.Write(probabilitiesString);
-                                probabilitiesString = "";
-                            }
-                        }
                     }
                 }
-
-                probabilitiesString += probabilitiesStringOfUser;
+                if (OMFDistributionFile != "")
+                {
+                    probabilitiesString += probabilitiesStringOfUser;
+                }
             });
-            // Flush and append to file
-            using (StreamWriter outfile = new StreamWriter("probabilities.txt", true))
+
+            if (OMFDistributionFile != "")
             {
-                outfile.Write(probabilitiesString);
+                // Flush and append to file
+                using (StreamWriter outfile = new StreamWriter(OMFDistributionFile, true))
+                {
+                    outfile.Write(probabilitiesString);
+                }
             }
             #endregion
-
 
             return R_predicted;
         }

@@ -23,7 +23,7 @@ namespace RecSys
         public static readonly double ZeroInSparseMatrix = -99;//1e-14;
         public const int MinCountOfRatings = 60;
         public const int CountOfRatingsForTrain = 50;
-        public static readonly string[] SplitSeperators = { "\t", "::" };
+        public static readonly string[] SplitSeperators = { "\t", "::", "," };
 
         public static readonly string UserSimilaritiesOfRatingFile = "userSimilaritiesOfRating.csv";
         public static readonly string UserSimilaritiesOfPrefFile = "userSimilaritiesOfPref.csv";

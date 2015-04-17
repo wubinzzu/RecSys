@@ -17,18 +17,17 @@ namespace RecSys.Core
         #region Public interfaces to compute similarities of matrix/preference relations
         public static Matrix<double> GetPearsonOfRows(RatingMatrix R)
         {
-            return ComputeSimilarities(R, SimilarityMetric.PearsonRating);
+            return ComputeSimilarities(R.Matrix, SimilarityMetric.PearsonRating);
         }
-        public static DenseMatrix GetCosineOfRows(RatingMatrix R)
+        public static Matrix<double> GetCosineOfRows(RatingMatrix R)
         {
             throw new NotImplementedException();
         }
-        public static DenseMatrix GetPearsonOfColumns(RatingMatrix R)
+        public static Matrix<double> GetPearsonOfColumns(RatingMatrix R)
         {
-            // Just rotate the matrix
-            throw new NotImplementedException();
+            return ComputeSimilarities(R.Matrix.Transpose(), SimilarityMetric.PearsonRating);
         }
-        public static DenseMatrix GetCosineOfColumns(RatingMatrix R)
+        public static Matrix<double> GetCosineOfColumns(RatingMatrix R)
         {
             // Just rotate the matrix
             throw new NotImplementedException();
@@ -50,9 +49,9 @@ namespace RecSys.Core
         /// <param name="R"></param>
         /// <param name="similarityMetric"></param>
         /// <returns></returns>
-        private static Matrix<double> ComputeSimilarities(RatingMatrix R, Metric.SimilarityMetric similarityMetric)
+        private static Matrix<double> ComputeSimilarities(Matrix<double> R, Metric.SimilarityMetric similarityMetric)
         {
-            int dimension = R.UserCount;
+            int dimension = R.RowCount;
 
             // For all metrics we use (Pearson and Cosine) the max similarity is 1.0
             Matrix<double> similarities = Matrix.Build.DenseDiagonal(dimension, 1);
@@ -61,7 +60,7 @@ namespace RecSys.Core
             Object lockMe = new Object();
             Parallel.For(0, dimension, i =>
             {
-                Utils.PrintEpoch("Progress user/total", i, dimension);
+                Utils.PrintEpoch("Progress current/total", i, dimension);
 
                 for (int j = 0; j < dimension; j++)
                 {
@@ -114,7 +113,7 @@ namespace RecSys.Core
             Object lockMe = new Object();
             Parallel.For(0, dimension, i =>
             {
-                Utils.PrintEpoch("Get similarity user/total", i, dimension);
+                Utils.PrintEpoch("Progress current/total", i, dimension);
 
                 for (int j = 0; j < dimension; j++)
                 {
@@ -145,22 +144,30 @@ namespace RecSys.Core
         #endregion
 
         #region Rating Pearson
-        private static double PearsonR(RatingMatrix R, int a, int b)
+        private static double PearsonR(Matrix<double> R, int a, int b)
         {
             // TODO: I'm wondering when we compute similarity,
             // should we count zeros in the vectors or not?
             // Why it is not Distance-1????!!
-            return 1 - Distance.Pearson(R.GetRow(a), R.GetRow(b));
+            double correlation = 1 - Distance.Pearson(R.Row(a), R.Row(b));
+            if (double.IsNaN(correlation))
+            {
+                // This means one of the row has 0 standard divation,
+                // it does not correlate to anyone
+                // so I assign the correlatino to be 0. however, strictly speaking, it should be left NaN
+                correlation = 0;
+            }
+            return correlation;
             //return 1 - Distance.Pearson(R.Matrix.Row(a), R.Matrix.Row(b));
         }
         #endregion
 
         #region Rating Cosine
-        private static double CosineR(RatingMatrix R, int a, int b)
+        private static double CosineR(Matrix<double> R, int a, int b)
         {
             // TODO: I'm wondering when we compute similarity,
             // should we count zeros in the vectors or not?
-            return Distance.Cosine(R.GetRow(a).ToArray(), R.GetRow(b).ToArray());
+            return Distance.Cosine(R.Row(a).ToArray(), R.Row(b).ToArray());
         }
         #endregion
 

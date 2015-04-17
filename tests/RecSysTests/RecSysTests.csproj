@@ -39,10 +39,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="MathNet.Numerics">
-      <HintPath>..\packages\MathNet.Numerics.3.6.0\lib\net40\MathNet.Numerics.dll</HintPath>
+      <HintPath>..\..\packages\MathNet.Numerics.3.6.0\lib\net40\MathNet.Numerics.dll</HintPath>
     </Reference>
     <Reference Include="MathNet.Numerics.Data.Text">
-      <HintPath>..\packages\MathNet.Numerics.Data.Text.3.1.0\lib\net40\MathNet.Numerics.Data.Text.dll</HintPath>
+      <HintPath>..\..\packages\MathNet.Numerics.Data.Text.3.1.0\lib\net40\MathNet.Numerics.Data.Text.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Numerics" />
@@ -64,6 +64,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="SolutionFiles\packages.config" />
   </ItemGroup>
   <ItemGroup>

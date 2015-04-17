@@ -21,7 +21,7 @@ namespace RecSys.Ordinal
         SparseMatrix featureWeightByItemItem;
         Dictionary<Tuple<int, int>, double[]> OMFDistributions;
 
-        public void PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown, SparseMatrix similarityByItemItem, Dictionary<Tuple<int, int>, double[]> OMFDistributions, double regularization, double learnRate, double minSimilarity, int maxEpoch, int ratingLevels, out RatingMatrix R_predicted_expectations, out RatingMatrix R_predicted_mostlikely)
+        public void PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown, Matrix<double> fullSimilarityByItemItem, Dictionary<Tuple<int, int>, double[]> OMFDistributions, double regularization, double learnRate, double minSimilarity, int maxEpoch, int ratingLevels, out RatingMatrix R_predicted_expectations, out RatingMatrix R_predicted_mostlikely)
         {
             /************************************************************
              *   Parameterization and Initialization
@@ -32,7 +32,6 @@ namespace RecSys.Ordinal
             meanByUser = R_train.GetUserMeans(); // Mean value of each user
             meanByItem = R_train.GetItemMeans(); // Mean value of each item
             this.R_train = R_train;
-            this.similarityByItemItem = similarityByItemItem;
             this.OMFDistributions = OMFDistributions;
             R_predicted_expectations = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
             R_predicted_mostlikely = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
@@ -41,7 +40,8 @@ namespace RecSys.Ordinal
 
             // Initialize the weights
             // Remove weak similarities so that the # of features is limited, see paper for more details
-            similarityByItemItem.CoerceZero(minSimilarity);
+            fullSimilarityByItemItem.CoerceZero(minSimilarity);
+            similarityByItemItem = SparseMatrix.OfMatrix(fullSimilarityByItemItem);    // After removed weak similarities the matrix should be sparse
             // Initialize all strong item-item features
             Random rnd = new Random(Config.Seed);
             foreach(var element in similarityByItemItem.EnumerateIndexed(Zeros.AllowSkip))
@@ -98,7 +98,7 @@ namespace RecSys.Ordinal
 
                             // Otherwise i-j is a strong feature and we will update its weight
                             // Find out the neighbors of item_i where the 
-                            List<int> neighborsOfItem_i = itemsOfUser;
+                            List<int> neighborsOfItem_i = new List<int>(itemsOfUser);
                             neighborsOfItem_i.Remove(indexOfItem_i);    // It is not a neighbor of itself
                             // Remove weak neighbors
                             foreach (int indexOfNeighbor in itemsOfUser)
@@ -185,7 +185,7 @@ namespace RecSys.Ordinal
                 {
                     int indexOfItem = unknownRating.Item1;
 
-                    List<int> neighborsOfItem = itemsByUser[indexOfUser];
+                    List<int> neighborsOfItem = new List<int>(itemsOfUser);
                     neighborsOfItem.Remove(indexOfItem);    // It is not a neighbor of itself
                     // Remove weak neighbors
                     foreach (int indexOfNeighbor in itemsOfUser)

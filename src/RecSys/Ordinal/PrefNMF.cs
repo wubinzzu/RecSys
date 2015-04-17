@@ -220,8 +220,7 @@ namespace RecSys.Ordinal
                     // Record the current error
                     currentErrorSum = eSum;
 
-                    Utils.PrintEpoch("Epoch", epoch, maxEpoch, "Learning error", Math.Sqrt(eSum / prefCount));
-                    Utils.PrintValue("" + epoch + "/" + maxEpoch, eSum.ToString("0.0"));
+                    Utils.PrintEpoch("Epoch", epoch, maxEpoch, "Learning error", eSum.ToString("0.0"));
                     // Stop the learning if the regularized error falls below a certain threshold
                     // Actually we only check it once every several epoches
                     if (previousErrorSum - currentErrorSum < 0.0001)

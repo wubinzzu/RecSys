@@ -48,10 +48,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="MathNet.Numerics">
-      <HintPath>..\packages\MathNet.Numerics.3.6.0\lib\net40\MathNet.Numerics.dll</HintPath>
+      <HintPath>..\..\packages\MathNet.Numerics.3.6.0\lib\net40\MathNet.Numerics.dll</HintPath>
     </Reference>
     <Reference Include="MathNet.Numerics.Data.Text">
-      <HintPath>..\packages\MathNet.Numerics.Data.Text.3.1.0\lib\net40\MathNet.Numerics.Data.Text.dll</HintPath>
+      <HintPath>..\..\packages\MathNet.Numerics.Data.Text.3.1.0\lib\net40\MathNet.Numerics.Data.Text.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -74,6 +74,7 @@
     <Compile Include="Numerical\RatingMatrix.cs" />
     <Compile Include="Numerical\RatingVector.cs" />
     <Compile Include="Ordinal\OMF.cs" />
+    <Compile Include="Ordinal\ORF.cs" />
     <Compile Include="Ordinal\PrefNMF.cs" />
     <Compile Include="Ordinal\PrefRelations.cs" />
     <Compile Include="Numerical\UserKNN.cs" />
@@ -85,6 +86,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="SolutionFiles\packages.config">
       <SubType>Designer</SubType>
     </None>

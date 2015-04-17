@@ -16,3 +16,5 @@ Therefore it is unnecessary to use SparseMatrix.OfMatrix() to explicitly cast th
 return a Matrix<double> instead of SparseMatrix.
 
 6. Initialize variables in declaration when there is no constructor accepts initialization parameters.
+
+7. Be careful, List and array are passed by reference. listB = listA, change value in B will modify A as well!

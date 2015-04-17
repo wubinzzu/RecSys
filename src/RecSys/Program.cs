@@ -18,6 +18,7 @@ namespace RecSys
     {
         static void Main(string[] args)
         {
+
             // Enable multi-threading for Math.Net
             Control.UseMultiThreading();
 
@@ -70,7 +71,9 @@ namespace RecSys
             #region Prepare preference relation data
             Utils.StartTimer();
             Utils.PrintHeading("Prepare preferecen relation data");
+            Console.WriteLine("Converting R_train into PR_train");
             PrefRelations PR_train = PrefRelations.CreateDiscrete(R_train);
+            Console.WriteLine("Converting R_test into PR_test");
             PrefRelations PR_test = PrefRelations.CreateDiscrete(R_test);
             //PrefRelations PR_train = PrefRelations.CreateScalar(R_train);
             Utils.StopTimer();
@@ -80,7 +83,7 @@ namespace RecSys
             Matrix<double> userSimilaritiesOfRating;
             Matrix<double> userSimilaritiesOfPref;
             Matrix<double> itemSimilaritiesOfRating;
-            Matrix<double> itemSimilaritiesOfPref;
+            //Matrix<double> itemSimilaritiesOfPref;
             if (Config.LoadSavedData)
             {
                 Utils.StartTimer();
@@ -91,11 +94,20 @@ namespace RecSys
                 Utils.StopTimer();
 
                 Utils.StartTimer();
+                Utils.PrintHeading("Load item-item similarities from R_train");
+                itemSimilaritiesOfRating = Utils.ReadDenseMatrix(Config.ItemSimilaritiesOfRatingFile);
+                Utils.PrintValue("Sum of similarities", itemSimilaritiesOfRating.RowSums().Sum().ToString("0.0000"));
+                Utils.PrintValue("Abs sum of similarities", itemSimilaritiesOfRating.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.StopTimer();
+
+                Utils.StartTimer();
                 Utils.PrintHeading("Load user-user similarities from PR_train");
                 userSimilaritiesOfPref = Utils.ReadDenseMatrix(Config.UserSimilaritiesOfPrefFile);
                 Utils.PrintValue("Sum of similarities", userSimilaritiesOfPref.RowSums().Sum().ToString("0.0000"));
                 Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfPref.RowAbsoluteSums().Sum().ToString("0.0000"));
                 Utils.StopTimer();
+
+                // TODO: add PR based item-item similarities
             }
             else
             {
@@ -111,6 +123,8 @@ namespace RecSys
                 Utils.PrintHeading("Compute item-item similarities from R_train");
                 itemSimilaritiesOfRating = Metric.GetPearsonOfColumns(R_train);
                 Utils.WriteMatrix(itemSimilaritiesOfRating, Config.ItemSimilaritiesOfRatingFile);
+                Vector<double> rowSums = itemSimilaritiesOfRating.RowSums();
+                double sum = checked(rowSums.Sum());
                 Utils.PrintValue("Sum of similarities", itemSimilaritiesOfRating.RowSums().Sum().ToString("0.0000"));
                 Utils.PrintValue("Abs sum of similarities", itemSimilaritiesOfRating.RowAbsoluteSums().Sum().ToString("0.0000"));
                 Utils.StopTimer();
@@ -123,8 +137,6 @@ namespace RecSys
                 Utils.PrintValue("Abs sum of similarities", userSimilaritiesOfPref.RowAbsoluteSums().Sum().ToString("0.0000"));
                 Utils.StopTimer();
             }
-            R_train.UserSimilarities = userSimilaritiesOfRating;
-            PR_train.UserSimilarities = userSimilaritiesOfPref;
 
             #endregion
 
@@ -180,13 +192,18 @@ namespace RecSys
                 R_train_positions.Quantization(1, 2, new List<double> { 1, 2, 3 });
                 Utils.StopTimer();
 
+                Console.WriteLine();
+
                 // Prediction
                 Utils.PrintHeading("Ordinal Matrix Factorization with PrefNMF as scorer");
                 Utils.StartTimer();
-                RatingMatrix R_predicted = new RatingMatrix(
-                    OMF.PredictRatings(R_train_positions.Matrix, R_unknown.Matrix, R_predictedByPrefNMF.Matrix,
-            Config.Preferences.quantizerThree)
-                    );
+                RatingMatrix R_predicted = new RatingMatrix(OMF.PredictRatings(R_train_positions.Matrix, R_unknown.Matrix, R_predictedByPrefNMF.Matrix, Config.Preferences.quantizerThree));
+                Utils.StopTimer();
+
+                // Prediction
+                Utils.PrintHeading("Generate ordinal distributinos on R_all (train+test) for ORF");
+                Utils.StartTimer();
+                OMF.PredictRatings(R_train_positions.Matrix, R_all.Matrix, R_predictedByPrefNMF.Matrix, Config.Preferences.quantizerThree, "OMFDistribution.txt");
                 Utils.StopTimer();
 
                 // Evaluation
@@ -218,7 +235,8 @@ namespace RecSys
                 ORF orf = new ORF();
                 // Prediction
                 Utils.StartTimer();
-                orf.PredictRatings(R_train,R_unknown,itemSimilaritiesOfRating,OMFDistributions,1,0.001,0.1,1000,3,R_predicted_expectations,R_predicted_mostlikely);
+                orf.PredictRatings(
+                    R_train,R_unknown,itemSimilaritiesOfRating,OMFDistributions,1,0.001,0.1,1000,3, out R_predicted_expectations, out R_predicted_mostlikely);
                 Utils.StopTimer();
 
                 // Evaluation
@@ -320,8 +338,6 @@ namespace RecSys
             #endregion
 
 
-
-
             /************************************************************
              *   Orginal Preferecen relations based Non-negative Matrix Factorization
             ************************************************************/
@@ -388,7 +404,7 @@ namespace RecSys
             {
                 // Prediction
                 Utils.StartTimer();
-                RatingMatrix R_predicted = UserKNN.PredictRatings(R_train, R_unknown, Config.KNN.K);
+                RatingMatrix R_predicted = UserKNN.PredictRatings(R_train, R_unknown, userSimilaritiesOfRating, Config.KNN.K);
                 Utils.StopTimer();
 
                 // Evaluation

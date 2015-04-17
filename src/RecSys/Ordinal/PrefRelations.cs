@@ -123,7 +123,7 @@ namespace RecSys.Ordinal
                 int userIndex = user.Item1;
                 RatingVector userRatings = new RatingVector(user.Item2);
 
-                Utils.PrintEpoch("Doing user/total", userIndex, userCount);
+                Utils.PrintEpoch("Converting user/total", userIndex, userCount);
 
                 // The diagonal refer to the i-i item pair
                 SparseMatrix userPreferences = new SparseMatrix(itemCount);
