@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace RecSys.Ordinal
@@ -144,18 +145,17 @@ namespace RecSys.Ordinal
              *   Make predictions using learned parameters
             ************************************************************/
             #region Make predictions using learned parameters
-            string probabilitiesString = "";
+            StringBuilder distributionOutput = new StringBuilder();
             Parallel.ForEach(R_unknown.EnumerateRowsIndexed(), row =>
             {
                 int indexOfUser = row.Item1;
+
                 SparseVector unknownRatingsOfUser = (SparseVector)row.Item2;
-                string probabilitiesStringOfUser = "";
+                StringBuilder distributionOutputOfUser = new StringBuilder();
 
                 foreach (var unknownRating in unknownRatingsOfUser.EnumerateIndexed(Zeros.AllowSkip))
                 {
                     int indexOfItem = unknownRating.Item1;
-                    double ratingByScorer = R_scorer[indexOfUser, indexOfItem];
-
                     // This is the ordinal distribution of the current user
                     // given the internal score by MF
                     // e.g. what is the probability of each rating 1-5
@@ -179,23 +179,11 @@ namespace RecSys.Ordinal
 
                     // TODO: Compute most likely value for MAE metric
 
+                    // Write distributions to file
                     if(OMFDistributionFile!="")
                     {
-                        probabilitiesStringOfUser += string.Format("{0},{1},{2}\n", indexOfUser, indexOfItem, String.Join(",", probabilitiesByInterval.Select(p => p.ToString("0.0000")).ToArray()));
-                        if (probabilitiesString.Length > 500000)
-                        {
-                            lock (lockMe)
-                            {
-                                // Flush and append to file
-                                using (StreamWriter outfile = new StreamWriter(OMFDistributionFile, true))
-                                {
-                                    outfile.Write(probabilitiesString);
-                                    probabilitiesString = "";
-                                }
-                            }
-                        }
+                        distributionOutputOfUser.AppendFormat("{0},{1},{2}\n", indexOfUser, indexOfItem, String.Join(",", probabilitiesByInterval.Select(p => p.ToString("0.0000")).ToArray()));
                     }
-
 
                     // Stores the numerical prediction
                     lock (lockMe)
@@ -203,18 +191,23 @@ namespace RecSys.Ordinal
                         R_predicted[indexOfUser, indexOfItem] = expectationRating;
                     }
                 }
+                // If write distributions to file then store the output string
                 if (OMFDistributionFile != "")
                 {
-                    probabilitiesString += probabilitiesStringOfUser;
+                    lock (lockMe)
+                    {
+                        distributionOutput.Append(distributionOutputOfUser);
+                    }
                 }
             });
 
+            // Flush to file
             if (OMFDistributionFile != "")
             {
                 // Flush and append to file
                 using (StreamWriter outfile = new StreamWriter(OMFDistributionFile, true))
                 {
-                    outfile.Write(probabilitiesString);
+                    outfile.Write(distributionOutput);
                 }
             }
             #endregion

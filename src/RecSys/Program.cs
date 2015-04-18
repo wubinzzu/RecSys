@@ -10,6 +10,7 @@ using MathNet.Numerics.Providers.LinearAlgebra.Mkl;
 using MathNet.Numerics.LinearAlgebra.Double;
 using MathNet.Numerics.Data.Text;
 using MathNet.Numerics.LinearAlgebra;
+using MathNet.Numerics.Statistics;
 using System.IO;
 
 namespace RecSys
@@ -18,7 +19,32 @@ namespace RecSys
     {
         static void Main(string[] args)
         {
-
+            /*
+             * 5  3  0  1
+             * 4  0  0  1
+             * 1  1  0  5
+             * 1  0  0  4
+             * 0  1  5  4
+             */
+            /*
+            RatingMatrix R = new RatingMatrix(new SparseMatrix(5, 4));
+            R[0, 0] = 5;
+            R[0, 1] = 3;
+            R[0, 3] = 1;
+            R[1, 0] = 4;
+            R[1, 3] = 1;
+            R[2, 0] = 1;
+            R[2, 1] = 1;
+            R[2, 3] = 5;
+            R[3, 0] = 1;
+            R[3, 3] = 4;
+            R[4, 1] = 1;
+            R[4, 2] = 5;
+            R[4, 3] = 4;
+            */
+           // Matrix<double> R_pearson_rows = Metric.GetPearsonOfRows(R);
+            //string aaa = R_pearson_rows.ToString();
+            //double pearson1 = Correlation.Pearson(R.GetRow(0), R.GetRow(1));
             // Enable multi-threading for Math.Net
             Control.UseMultiThreading();
 
@@ -163,6 +189,132 @@ namespace RecSys
             #endregion
 
             /************************************************************
+             *   Rating based Non-negative Matrix Factorization
+            ************************************************************/
+            #region Run rating based NMF
+            Utils.PrintHeading("Rating based NMF");
+            if (Utils.Ask())
+            {
+                // Prediction
+                Utils.StartTimer();
+                RatingMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, Config.NMF.MaxEpoch,
+                    Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
+                Utils.StopTimer();
+
+                // Evaluation
+                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+
+                //Utils.Pause();
+            }
+            #endregion
+
+            /************************************************************
+             *   Ordinal Matrix Factorization with NMF as scorer
+            ************************************************************/
+            #region Run Ordinal Matrix Factorization with NMF as scorer
+            Utils.PrintHeading("Train NMF as scorer for OMF");
+            if (Utils.Ask())
+            {
+                // Get ratings from scorer, for both train and test
+                // R_all contains indexes of all ratings both train and test
+                RatingMatrix R_all = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+                R_all.MergeNonOverlap(R_unknown);
+                R_all.MergeNonOverlap(R_train.IndexesOfNonZeroElements());
+
+                RatingMatrix R_predictedByNMF = NMF.PredictRatings(R_train, R_all, Config.NMF.MaxEpoch,
+                    Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
+
+                // Prediction on test
+                Utils.PrintHeading("Ordinal Matrix Factorization with NMF as scorer");
+                Utils.StartTimer();
+                RatingMatrix R_predicted = new RatingMatrix(
+                    OMF.PredictRatings(R_train.Matrix, R_unknown.Matrix, R_predictedByNMF.Matrix,
+            Config.Preferences.quantizerFive)
+                    );
+                Utils.StopTimer();
+
+                // Output OMF distributions
+                Utils.PrintHeading("Generate ordinal distributinos on R_all (train+test) for ORF");
+                Utils.StartTimer();
+                OMF.PredictRatings(R_train.Matrix, R_all.Matrix,
+                    R_predictedByNMF.Matrix, Config.Preferences.quantizerFive, Config.OMFDistributionsFile);
+                Utils.StopTimer();
+
+                // Evaluation
+                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000"));
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+
+                //Utils.Pause();
+            }
+            #endregion
+
+
+            /************************************************************
+             *   ORF+OMF(NMF)
+            ************************************************************/
+            #region ORF+OMF(NMF)
+            Utils.PrintHeading("ORF+OMF(NMF)");
+            if (Utils.Ask())
+            {
+                RatingMatrix R_predicted_expectations;
+                RatingMatrix R_predicted_mostlikely;
+                Dictionary<Tuple<int,int>,double[]> OMFDistributions = 
+                    Utils.LoadOMFDistributions(Config.OMFDistributionsFile);
+                ORF orf = new ORF();
+
+                // Prediction
+                Utils.StartTimer();
+                orf.PredictRatings(
+                    R_train, R_unknown, itemSimilaritiesOfRating, OMFDistributions,
+                    0.05, 0.001, 0.2, 100, 5, out R_predicted_expectations, out R_predicted_mostlikely);
+                Utils.StopTimer();
+
+                // Evaluation
+                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted_expectations).ToString("0.0000"));
+                Utils.PrintValue("MAE", RMSE.Evaluate(R_test, R_predicted_mostlikely).ToString("0.0000"));
+                var topNItemsByUser_expectations = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_expectations, Config.TopN);
+                var topNItemsByUser_mostlikely = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_mostlikely, Config.TopN);
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser_expectations, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser_expectations, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser_mostlikely, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= Config.TopN; n++)
+                {
+                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser_mostlikely, n).ToString("0.0000"));
+                }
+                //Utils.Pause();
+            }
+            #endregion
+
+
+            /************************************************************
              *   Ordinal Matrix Factorization with PrefNMF as scorer
             ************************************************************/
             #region Run Ordinal Matrix Factorization with PrefNMF as scorer
@@ -203,7 +355,8 @@ namespace RecSys
                 // Prediction
                 Utils.PrintHeading("Generate ordinal distributinos on R_all (train+test) for ORF");
                 Utils.StartTimer();
-                OMF.PredictRatings(R_train_positions.Matrix, R_all.Matrix, R_predictedByPrefNMF.Matrix, Config.Preferences.quantizerThree, "OMFDistribution.txt");
+                OMF.PredictRatings(R_train_positions.Matrix, R_all.Matrix, 
+                    R_predictedByPrefNMF.Matrix, Config.Preferences.quantizerThree, Config.OMFDistributionsFile);
                 Utils.StopTimer();
 
                 // Evaluation
@@ -222,120 +375,9 @@ namespace RecSys
             #endregion
 
 
-            /************************************************************
-             *   ORF+OMF(PrefNMF)
-            ************************************************************/
-            #region ORF+OMF(PrefNMF)
-            Utils.PrintHeading("ORF+OMF(PrefNMF)");
-            if (Utils.Ask())
-            {
-                RatingMatrix R_predicted_expectations;
-                RatingMatrix R_predicted_mostlikely;
-                Dictionary<Tuple<int,int>,double[]> OMFDistributions = Utils.LoadOMFDistributions("probabilities.txt");
-                ORF orf = new ORF();
-                // Prediction
-                Utils.StartTimer();
-                orf.PredictRatings(
-                    R_train,R_unknown,itemSimilaritiesOfRating,OMFDistributions,1,0.001,0.1,1000,3, out R_predicted_expectations, out R_predicted_mostlikely);
-                Utils.StopTimer();
-
-                // Evaluation
-                var topNItemsByUser_expectations = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_expectations, Config.TopN);
-                var topNItemsByUser_mostlikely = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_mostlikely, Config.TopN);
-                for (int n = 1; n <= Config.TopN; n++)
-                {
-                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser_expectations, n).ToString("0.0000"));
-                }
-                for (int n = 1; n <= Config.TopN; n++)
-                {
-                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser_expectations, n).ToString("0.0000"));
-                }
-                for (int n = 1; n <= Config.TopN; n++)
-                {
-                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser_mostlikely, n).ToString("0.0000"));
-                }
-                for (int n = 1; n <= Config.TopN; n++)
-                {
-                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser_mostlikely, n).ToString("0.0000"));
-                }
-                //Utils.Pause();
-            }
-            #endregion
 
 
 
-            /************************************************************
-             *   Rating based Non-negative Matrix Factorization
-            ************************************************************/
-            #region Run rating based NMF
-            Utils.PrintHeading("Rating based NMF");
-            if (Utils.Ask())
-            {
-                // Prediction
-                Utils.StartTimer();
-                RatingMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, Config.NMF.MaxEpoch,
-                    Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
-                Utils.StopTimer();
-
-                // Evaluation
-                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000"));
-                Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000"));
-                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
-                for (int n = 1; n <= Config.TopN; n++)
-                {
-                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
-                }
-                for (int n = 1; n <= Config.TopN; n++)
-                {
-                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
-                }
-
-                //Utils.Pause();
-            }
-            #endregion
-
-
-            /************************************************************
-             *   Ordinal Matrix Factorization with NMF as scorer
-            ************************************************************/
-            #region Run Ordinal Matrix Factorization with NMF as scorer
-            Utils.PrintHeading("Train NMF as scorer for OMF");
-            if (Utils.Ask())
-            {
-                // Get ratings from scorer, for both train and test
-                // R_all contains indexes of all ratings both train and test
-                RatingMatrix R_all = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
-                R_all.MergeNonOverlap(R_unknown);
-                R_all.MergeNonOverlap(R_train.IndexesOfNonZeroElements());
-
-                RatingMatrix R_predictedByNMF = NMF.PredictRatings(R_train, R_all, Config.NMF.MaxEpoch,
-                    Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
-
-                // Prediction
-                Utils.PrintHeading("Ordinal Matrix Factorization with NMF as scorer");
-                Utils.StartTimer();
-                RatingMatrix R_predicted = new RatingMatrix(
-                    OMF.PredictRatings(R_train.Matrix, R_unknown.Matrix, R_predictedByNMF.Matrix, 
-            Config.Preferences.quantizerFive)
-                    );
-                Utils.StopTimer();
-
-                // Evaluation
-                Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000"));
-                Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000"));
-                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
-                for (int n = 1; n <= Config.TopN; n++)
-                {
-                    Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
-                }
-                for (int n = 1; n <= Config.TopN; n++)
-                {
-                    Utils.PrintValue("Precision@" + n, Precision.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
-                }
-
-                //Utils.Pause();
-            }
-            #endregion
 
 
             /************************************************************
@@ -435,7 +477,7 @@ namespace RecSys
                 // Prediction
                 Utils.PrintHeading("Preference relation based UserKNN");
                 Utils.StartTimer();
-                RatingMatrix R_predicted = PrefUserKNN.PredictRatings(PR_train, R_unknown, Config.KNN.K);
+                RatingMatrix R_predicted = PrefUserKNN.PredictRatings(PR_train, R_unknown, Config.KNN.K, userSimilaritiesOfPref);
                 Utils.StopTimer();
 
                 // Evaluation

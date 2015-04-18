@@ -20,7 +20,7 @@ namespace RecSys.Ordinal
     public static class PrefUserKNN
     {
         public static RatingMatrix PredictRatings(PrefRelations PR_train,
-            RatingMatrix R_unknown, int K)
+            RatingMatrix R_unknown, int K, Matrix<double> userSimilaritiesOfPref)
         {
             Debug.Assert(PR_train.UserCount == R_unknown.UserCount);
             Debug.Assert(PR_train.ItemCount == R_unknown.ItemCount);
@@ -45,7 +45,7 @@ namespace RecSys.Ordinal
 
                 Utils.PrintEpoch("Predicting user/total", indexOfUser, PR_train.UserCount);
 
-                Dictionary<int, double> topKNeighbors = KNNCore.GetTopKNeighborsByUser(PR_train.UserSimilarities, indexOfUser, K);
+                Dictionary<int, double> topKNeighbors = KNNCore.GetTopKNeighborsByUser(userSimilaritiesOfPref, indexOfUser, K);
 
                 double meanOfUser = meanByUser[indexOfUser];
 

@@ -231,16 +231,16 @@ namespace RecSys
                 PrintValue(label, (epoch + 1) + "/" + maxEpoch);
             }
         }
-        public static void PrintEpoch(string label1, int epoch, int maxEpoch, string label2, double error)
+        public static void PrintEpoch(string label1, int epoch, int maxEpoch, string label2, double error, bool alwaysPrint = false)
         {
-            if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
+            if (alwaysPrint || epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
             {
                 PrintValue(label2 + "@" + label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", error.ToString("0.0000"));
             }
         }
-        public static void PrintEpoch(string label1, int epoch, int maxEpoch, string label2, string message)
+        public static void PrintEpoch(string label1, int epoch, int maxEpoch, string label2, string message, bool alwaysPrint = false)
         {
-            if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
+            if (alwaysPrint || epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
             {
                 PrintValue(label2 + "@" + label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", message);
             }
@@ -288,7 +288,6 @@ namespace RecSys
         }
         #endregion
 
-
         #region Load OMF
         public static Dictionary<Tuple<int, int>, double[]> LoadOMFDistributions(string fileName)
         {
@@ -297,14 +296,12 @@ namespace RecSys
             // Read the file to discover the whole matrix structure and mapping
             foreach (string line in File.ReadLines(fileName))
             {
-                string[] tokens = line.Split(Config.SplitSeperators, StringSplitOptions.RemoveEmptyEntries);
+                List<string> tokens = line.Split(Config.SplitSeperators, StringSplitOptions.RemoveEmptyEntries).ToList();
                 int indexOfUser = int.Parse(tokens[0]);
                 int indexOfItem = int.Parse(tokens[1]);
-                // TODO: make it dynamic later
-                OMFDistributions[new Tuple<int, int>(indexOfUser, indexOfItem)] = new double[] {
-                    double.Parse(tokens[2]),
-                    double.Parse(tokens[3]),
-                    double.Parse(tokens[4])};
+
+                OMFDistributions[new Tuple<int, int>(indexOfUser, indexOfItem)] = 
+                    tokens.GetRange(2,tokens.Count-2).Select(x => double.Parse(x)).ToArray();
             }
 
             return OMFDistributions;

@@ -1,6 +1,7 @@
 ﻿using MathNet.Numerics;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
+using MathNet.Numerics.Statistics;
 using RecSys.Numerical;
 using RecSys.Ordinal;
 using System;
@@ -146,10 +147,9 @@ namespace RecSys.Core
         #region Rating Pearson
         private static double PearsonR(Matrix<double> R, int a, int b)
         {
-            // TODO: I'm wondering when we compute similarity,
-            // should we count zeros in the vectors or not?
             // Why it is not Distance-1????!!
-            double correlation = 1 - Distance.Pearson(R.Row(a), R.Row(b));
+            double correlation = Correlation.Pearson(R.Row(a), R.Row(b));//Distance.Pearson(R.Row(a), R.Row(b));
+            //double correlation = Distance.Pearson(R.Row(a), R.Row(b));
             if (double.IsNaN(correlation))
             {
                 // This means one of the row has 0 standard divation,

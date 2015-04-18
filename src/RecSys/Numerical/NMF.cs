@@ -28,6 +28,7 @@ namespace RecSys
             Matrix<double> Q = Utils.CreateRandomMatrix(factorCount, itemCount, Config.Seed + 1);
 
             // SGD
+            double e_prev = double.MaxValue;
             for (int epoch = 0; epoch < maxEpoch; ++epoch)
             {
                 foreach (Tuple<int, int, double> element in R_train.Ratings)
@@ -64,7 +65,7 @@ namespace RecSys
                 }
 
                 // Display the current regularized error see if it converges
-                double e_prev = double.MaxValue;
+
                 double e_curr = 0;
                 if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
                 {
@@ -96,15 +97,17 @@ namespace RecSys
                     // Record the current error
                     e_curr = objective;
 
+                    // Stop the learning if the regularized error falls below a certain threshold
+                    if (e_prev - e_curr < 0.001)
+                    {
+                        Console.WriteLine("Improvment less than 0.001, learning stopped.");
+                        break;
+                    }
+                    e_prev = e_curr;
+
                     Utils.PrintEpoch("Epoch", epoch, maxEpoch, "Objective cost", objective);
                 }
-                // Stop the learning if the regularized error falls below a certain threshold
-                if (e_prev - e_curr < 0.001)
-                {
-                    Console.WriteLine("Improvment less than 0.001, learning stopped.");
-                    break;
-                }
-                e_prev = e_curr;
+
             }
             return new RatingMatrix(R_unknown.PointwiseMultiply(P.Multiply(Q)));
         }

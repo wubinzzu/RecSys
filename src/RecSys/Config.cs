@@ -29,6 +29,7 @@ namespace RecSys
         public static readonly string UserSimilaritiesOfPrefFile = "userSimilaritiesOfPref.csv";
         public static readonly string ItemSimilaritiesOfRatingFile = "itemSimilaritiesOfRating.csv";
         public static readonly string ItemSimilaritiesOfPrefFile = "itemSimilaritiesOfPref.csv";
+        public static readonly string OMFDistributionsFile = "OMFDistributions.txt";
 
         public class OMF
         {
