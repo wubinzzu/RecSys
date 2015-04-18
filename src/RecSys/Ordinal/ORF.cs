@@ -116,20 +116,18 @@ namespace RecSys.Ordinal
                         List<double> localLikelihoods = new List<double>(ratingLevels);
 
                         Object lockMe = new object();
-                        //for (int targetRating = 1; targetRating <= ratingLevels; targetRating++)
-                        Parallel.For(0, ratingLevels, level =>
+                        for (int targetRating = 1; targetRating <= ratingLevels; targetRating++)
                         {
-                            double Z_ui_level = OMFDistributions[new Tuple<int, int>(indexOfUser, indexOfItem_i)][level]
-                                * ComputePotential(level + 1, indexOfUser, indexOfItem_i, neighborsOfItem_i);
+                            double Z_ui_level = OMFDistributions[new Tuple<int, int>(indexOfUser, indexOfItem_i)][targetRating-1]
+                                * ComputePotential(targetRating, indexOfUser, indexOfItem_i, neighborsOfItem_i);
                             lock(lockMe)
                             {
                                 Z_ui += Z_ui_level;
                             }
-                        });
+                        }
 
-                        Parallel.For(0, ratingLevels, level =>
+                        for (int targetRating = 1; targetRating <= ratingLevels; targetRating++)
                         {
-                            int targetRating = level + 1;
                             //for (int targetRating = 1; targetRating <= ratingLevels; targetRating++)
                             //{
                             // The reason we need to compute the local likelihood for every i-j pair
@@ -145,7 +143,7 @@ namespace RecSys.Ordinal
                             {
                                 localLikelihoods.Add(localLikelihoodOfTargetRating);
                             }
-                        });
+                        }
 
                         // For each neighbor item with strong correlation to item_i,
                         // update the weight w_ij
