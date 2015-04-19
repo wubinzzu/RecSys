@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace RecSys
 {
@@ -140,6 +141,23 @@ namespace RecSys
         }
         #endregion
 
+        public static void WriteMovieLens(RatingMatrix R, string fileName)
+        {
+            StringBuilder output = new StringBuilder();
+            foreach (var element in R.Matrix.EnumerateIndexed(Zeros.AllowSkip))
+            {
+                double indexOfUser = element.Item1;
+                double indexOfItem = element.Item2;
+                double rating = element.Item3;
+                output.AppendFormat("{0},{1},{2}\n", indexOfUser, indexOfItem, rating);
+            }
+            // Flush and append to file
+            using (StreamWriter outfile = new StreamWriter(fileName))
+            {
+                outfile.Write(output);
+            }
+        }
+
         /// <summary>
         /// Write a matrix (sparse or dense) to a comma separated file.
         /// </summary>
@@ -177,12 +195,28 @@ namespace RecSys
         /// <param name="columnCount">Number of columns.</param>
         /// <param name="seed">Random seed.</param>
         /// <returns>A Matrix filled with random numbers from [0,1].</returns>
-        public static Matrix<double> CreateRandomMatrix(int rowCount, int columnCount, int seed = Config.Seed)
+        public static Matrix<double> CreateRandomMatrixFromUniform(int rowCount, int columnCount, double min, double max, int seed = Config.Seed)
         {
-            ContinuousUniform uniformDistribution = new ContinuousUniform(0, 1, new Random(Config.Seed));
+            ContinuousUniform uniformDistribution = new ContinuousUniform(min, max, new Random(Config.Seed));
             Matrix<double> randomMatrix = Matrix.Build.Random(rowCount, columnCount, uniformDistribution);
 
             Debug.Assert(randomMatrix.Find(x => x > 1 && x < 0) == null);  // Check the numbers are in [0,1]
+
+            return randomMatrix;
+        }
+
+        /// <summary>
+        /// Create a Matrix filled with random numbers from Normal distribution
+        /// </summary>
+        /// <param name="rowCount">Number of rows.</param>
+        /// <param name="columnCount">Number of columns.</param>
+        /// <param name="seed">Random seed.</param>
+        /// <returns>A Matrix filled with random numbers from N~(mean, stddev).</returns>
+        public static Matrix<double> CreateRandomMatrixFromNormal(int rowCount, int columnCount, 
+            double mean, double stddev, int seed = Config.Seed)
+        {
+            Normal normalDistribution = new Normal(mean, stddev, new Random(Config.Seed));
+            Matrix<double> randomMatrix = Matrix.Build.Random(rowCount, columnCount, normalDistribution);
 
             return randomMatrix;
         }

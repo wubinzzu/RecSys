@@ -20,12 +20,15 @@ namespace RecSys
             int userCount = R_train.UserCount;
             int itemCount = R_train.ItemCount;
             int ratingCount = R_train.NonZerosCount;
+            double meanOfGlobal = R_train.GetGlobalMean();
             RatingMatrix R_train_unknown = R_train.IndexesOfNonZeroElements();  // For testing convergence
 
             // User latent vectors with default seed
-            Matrix<double> P = Utils.CreateRandomMatrix(userCount, factorCount, Config.Seed);
+            Matrix<double> P = Utils.CreateRandomMatrixFromNormal(userCount, factorCount, 0, 0.1, Config.Seed);
+           // Matrix<double> P = Utils.CreateRandomMatrixFromUniform(userCount, factorCount, 0, 0.1, Config.Seed);
             // Item latent vectors with a different seed
-            Matrix<double> Q = Utils.CreateRandomMatrix(factorCount, itemCount, Config.Seed + 1);
+            Matrix<double> Q = Utils.CreateRandomMatrixFromNormal(factorCount, itemCount, 0, 0.1, Config.Seed + 1);
+            //Matrix<double> Q = Utils.CreateRandomMatrixFromUniform(factorCount, itemCount, 0, 0.1, Config.Seed + 1);
 
             // SGD
             double e_prev = double.MaxValue;
@@ -37,7 +40,7 @@ namespace RecSys
                     int indexOfItem = element.Item2;
                     double rating = element.Item3;
 
-                    double e_ij = rating - P.Row(indexOfUser).DotProduct(Q.Column(indexOfItem));
+                    double e_ij = rating - (meanOfGlobal + P.Row(indexOfUser).DotProduct(Q.Column(indexOfItem)));
                     
                     // Update feature vectors
                     Vector<double> P_u = P.Row(indexOfUser);
@@ -109,7 +112,21 @@ namespace RecSys
                 }
 
             }
-            return new RatingMatrix(R_unknown.PointwiseMultiply(P.Multiply(Q)));
+
+            SparseMatrix R_predicted = new SparseMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+            foreach(var element in R_unknown.Matrix.EnumerateIndexed(Zeros.AllowSkip))
+            {
+                int indexOfUser = element.Item1;
+                int indexOfItem = element.Item2;
+                double r_predicted = meanOfGlobal + P.Row(indexOfUser) * Q.Column(indexOfItem);
+
+                if (r_predicted > Config.Ratings.MaxRating) r_predicted = Config.Ratings.MaxRating;
+                if (r_predicted < Config.Ratings.MinRating) r_predicted = Config.Ratings.MinRating;
+
+                R_predicted[indexOfUser, indexOfItem] = r_predicted;
+            }
+            return new RatingMatrix(R_predicted);
+            //return new RatingMatrix(R_unknown.PointwiseMultiply(P.Multiply(Q)));
         }
     }
 }

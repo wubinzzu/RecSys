@@ -77,9 +77,9 @@ namespace RecSys.Ordinal
             int prefCount = PR_train.GetTotalPrefRelationsCount();
 
             // User latent vectors with default seed
-            P = Utils.CreateRandomMatrix(userCount, factorCount, Config.Seed);
+            P = Utils.CreateRandomMatrixFromUniform(userCount, factorCount, 0, 0.1, Config.Seed);
             // Item latent vectors with a different seed
-            Q = Utils.CreateRandomMatrix(factorCount, itemCount, Config.Seed + 1);
+            Q = Utils.CreateRandomMatrixFromUniform(factorCount, itemCount, 0, 0.1, Config.Seed + 1);
 
             // SGD
             double previousErrorSum = long.MaxValue;

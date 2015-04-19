@@ -19,7 +19,7 @@ namespace RecSys
         public static readonly bool RunRatingUserKNN = true;
         public static readonly bool RunPreferenceUserKNN = true;
         public static readonly bool RunGlobalMean = true;
-        public static readonly bool LoadSavedData = true;
+        public static readonly bool LoadSavedData = false;
         public static readonly double ZeroInSparseMatrix = -99;//1e-14;
         public const int MinCountOfRatings = 60;
         public const int CountOfRatingsForTrain = 50;
@@ -42,10 +42,11 @@ namespace RecSys
         public class NMF
         {
             // Matrix Factorization
-            public static readonly int K = 30;				// Num of factors
-            public static readonly int MaxEpoch = 100;
+            public static readonly int K = 10;				// Num of factors
+            public static readonly int MaxEpoch = 60;
             public static readonly double LearnRate = 0.01;
-            public static readonly double Regularization = 0.1;
+            public static readonly double Regularization = 0.015;
+            public static readonly double Decay = 1;
         }
 
         public class PrefNMF
@@ -60,7 +61,7 @@ namespace RecSys
 
         public class Ratings
         {
-            public static readonly string DataSetFile = "100k.data";
+            public static readonly string DataSetFile = "1m.data";
             public static readonly string TrainSetFile = "R_train.csv";
             public static readonly string TestSetFile = "R_test.csv";
             public static readonly double RelevanceThreshold = 5.0;   // Only 5-star items are considered as relevant
@@ -82,7 +83,7 @@ namespace RecSys
 
         public class KNN
         {
-            public static readonly int K = 10;		// Num of neighbors
+            public static readonly int K = 50;		// Num of neighbors
         }
         public static readonly int TopN = 10;
     }

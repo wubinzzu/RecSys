@@ -47,11 +47,17 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="C5">
+      <HintPath>..\..\packages\C5.2.3\lib\net40\C5.dll</HintPath>
+    </Reference>
     <Reference Include="MathNet.Numerics">
       <HintPath>..\..\packages\MathNet.Numerics.3.6.0\lib\net40\MathNet.Numerics.dll</HintPath>
     </Reference>
     <Reference Include="MathNet.Numerics.Data.Text">
       <HintPath>..\..\packages\MathNet.Numerics.Data.Text.3.1.0\lib\net40\MathNet.Numerics.Data.Text.dll</HintPath>
+    </Reference>
+    <Reference Include="MyMediaLite">
+      <HintPath>..\..\packages\MyMediaLite.3.10\lib\net40\MyMediaLite.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
