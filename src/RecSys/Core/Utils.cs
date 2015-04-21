@@ -232,7 +232,7 @@ namespace RecSys
             return formatedTitle;
         }
 
-        public static void PrintValue(string label, string value)
+        public static string PrintValue(string label, string value)
         {
             string formatedString = "";
             string labelToPrint = label;
@@ -245,6 +245,7 @@ namespace RecSys
                 labelToPrint.PadRight(Config.RightPad, ' '),
                 value.PadLeft(Config.LeftPad, ' '));
             Console.WriteLine(formatedString);
+            return formatedString;
         }
 
         public static string PrintValueToString(string label, string value)
@@ -253,9 +254,11 @@ namespace RecSys
                 value.PadLeft(Config.LeftPad, ' '));
         }
 
-        public static void PrintHeading(string title)
+        public static string PrintHeading(string title)
         {
-            Console.Write(CreateHeading(title));
+            string heading = CreateHeading(title);
+            Console.Write(heading);
+            return heading;
         }
 
         public static void PrintEpoch(string label, int epoch, int maxEpoch)
@@ -272,12 +275,15 @@ namespace RecSys
                 PrintValue(label2 + "@" + label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", error.ToString("0.0000"));
             }
         }
-        public static void PrintEpoch(string label1, int epoch, int maxEpoch, string label2, string message, bool alwaysPrint = false)
+        public static string PrintEpoch(string label1, int epoch, int maxEpoch, string label2, string message, bool alwaysPrint = false)
         {
+            StringBuilder log = new StringBuilder();
             if (alwaysPrint || epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
             {
-                PrintValue(label2 + "@" + label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", message);
+                log.Append(PrintValue(label2 + "@" + label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", message));
             }
+
+            return log.ToString();
         }
         #endregion
 
@@ -288,12 +294,14 @@ namespace RecSys
             stopwatch = Stopwatch.StartNew();
         }
 
-        public static void StopTimer()
+        public static string StopTimer()
         {
             stopwatch.Stop();
             double seconds = stopwatch.Elapsed.TotalMilliseconds / 1000;
-            Console.WriteLine("{0}│{1}s", "Computation time".PadRight(Config.RightPad, ' '),
+            string log = string.Format("{0}│{1}s", "Computation time".PadRight(Config.RightPad, ' '),
                 seconds.ToString("0.000").PadLeft(Config.LeftPad - 1, ' '));
+            Console.WriteLine(log);
+            return log;
         }
 
         public static void Pause()

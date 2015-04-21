@@ -1,5 +1,6 @@
 ﻿using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
+using RecSys.Numerical;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -29,15 +30,19 @@ namespace RecSys.Ordinal
         /// both the R_train and R_unknown sets</param>
         /// <returns>The predicted ratings on R_unknown</returns>
         #region PredictRatings
-        public static SparseMatrix PredictRatings(SparseMatrix R_train, SparseMatrix R_unknown, 
-            SparseMatrix R_scorer, List<double> quantizer, string OMFDistributionFile="")
+        public static string PredictRatings(SparseMatrix R_train, SparseMatrix R_unknown,
+ SparseMatrix R_scorer, List<double> quantizer, out RatingMatrix R_predicted,
+            out Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem)
         {
+            StringBuilder log = new StringBuilder();
             /************************************************************
              *   Parameterization and Initialization
             ************************************************************/
             #region Parameterization and Initialization
             // This matrix stores predictions
-            SparseMatrix R_predicted = (SparseMatrix)Matrix.Build.Sparse(R_unknown.RowCount, R_unknown.ColumnCount);
+            SparseMatrix R_predicted_out = (SparseMatrix)Matrix.Build.Sparse(R_unknown.RowCount, R_unknown.ColumnCount);
+            Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem_out =
+                new Dictionary<Tuple<int, int>, List<double>>(R_unknown.NonZerosCount);
 
             // User specified parameters
             double maxEpoch = Config.OMF.MaxEpoch;
@@ -113,7 +118,8 @@ namespace RecSys.Ordinal
 
                         // Compute derivatives/gradients
                         double derivativeOft1 = learnRate / probE_r * (probLE_r * (1 - probLE_r) * DerivativeOfBeta(r, 0, t1)
-                                - probLE_r_minus_1 * (1 - probLE_r_minus_1) * DerivativeOfBeta(r - 1, 0, t1) - Config.OMF.Regularization * t1);
+                                - probLE_r_minus_1 * (1 - probLE_r_minus_1) * DerivativeOfBeta(r - 1, 0, t1)
+                                - Config.OMF.Regularization * t1);
 
                         Vector<double> derivativesOfbetas = Vector.Build.Dense(betas.Count);
                         for (int k = 0; k < betas.Count; k++)
@@ -135,9 +141,10 @@ namespace RecSys.Ordinal
                     paramtersByUser[indexOfUser].t1 = t1;
                     paramtersByUser[indexOfUser].betas = betas;
                 }
-                Utils.PrintEpoch("user/total", indexOfUser, userCount, "Learned params",
-                    String.Format("t1={0:0.000},betas={1}", t1, string.Concat(betas.Select(i => string.Format("{0:0.00},", i))))
-                    );
+
+                log.Append(Utils.PrintEpoch("user/total", indexOfUser, userCount, "Learned params",
+                    String.Format("t1={0:0.000},betas={1}", t1, string.Concat(
+                    betas.Select(i => string.Format("{0:0.00},", i))))));
             });
             #endregion
 
@@ -145,74 +152,80 @@ namespace RecSys.Ordinal
              *   Make predictions using learned parameters
             ************************************************************/
             #region Make predictions using learned parameters
-            StringBuilder distributionOutput = new StringBuilder();
-            Parallel.ForEach(R_unknown.EnumerateRowsIndexed(), row =>
+            lockMe = new Object();
+            Parallel.ForEach(R_unknown.EnumerateIndexed(Zeros.AllowSkip), element =>
             {
-                int indexOfUser = row.Item1;
-
-                SparseVector unknownRatingsOfUser = (SparseVector)row.Item2;
-                StringBuilder distributionOutputOfUser = new StringBuilder();
-
-                foreach (var unknownRating in unknownRatingsOfUser.EnumerateIndexed(Zeros.AllowSkip))
+                int indexOfUser = element.Item1;
+                int indexOfItem = element.Item2;
+                // This is the ordinal distribution of the current user
+                // given the internal score by MF
+                // e.g. what is the probability of each rating 1-5
+                List<double> probabilitiesByInterval = new List<double>(quantizer.Count);
+                double scoreFromScorer = R_scorer[indexOfUser, indexOfItem];
+                double pre = ComputeProbLE(scoreFromScorer, 0, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
+                probabilitiesByInterval[0] = pre;
+                for (int i = 1; i < intervalCount; i++)
                 {
-                    int indexOfItem = unknownRating.Item1;
-                    // This is the ordinal distribution of the current user
-                    // given the internal score by MF
-                    // e.g. what is the probability of each rating 1-5
-                    double[] probabilitiesByInterval = new double[quantizer.Count];
-                    double scoreFromScorer = R_scorer[indexOfUser, indexOfItem];
-                    double pre = ComputeProbLE(scoreFromScorer, 0, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
-                    probabilitiesByInterval[0] = pre;
-                    for (int i = 1; i < intervalCount; i++)
-                    {
-                        double pro = ComputeProbLE(scoreFromScorer, i, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
-                        probabilitiesByInterval[i] = pro - pre;
-                        pre = pro;
-                    }
-
-                    // Compute smoothed expectation for RMSE metric
-                    double expectationRating = 0.0;
-                    for (int i = 0; i < probabilitiesByInterval.Length; i++)
-                    {
-                        expectationRating += (i + 1) * probabilitiesByInterval[i];
-                    }
-
-                    // TODO: Compute most likely value for MAE metric
-
-                    // Write distributions to file
-                    if(OMFDistributionFile!="")
-                    {
-                        distributionOutputOfUser.AppendFormat("{0},{1},{2}\n", indexOfUser, indexOfItem, String.Join(",", probabilitiesByInterval.Select(p => p.ToString("0.0000")).ToArray()));
-                    }
-
-                    // Stores the numerical prediction
-                    lock (lockMe)
-                    {
-                        R_predicted[indexOfUser, indexOfItem] = expectationRating;
-                    }
+                    double pro = ComputeProbLE(scoreFromScorer, i, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
+                    probabilitiesByInterval[i] = pro - pre;
+                    pre = pro;
                 }
-                // If write distributions to file then store the output string
-                if (OMFDistributionFile != "")
+
+                // Compute smoothed expectation for RMSE metric
+                double expectationRating = 0.0;
+                for (int i = 0; i < probabilitiesByInterval.Count; i++)
                 {
-                    lock (lockMe)
-                    {
-                        distributionOutput.Append(distributionOutputOfUser);
-                    }
+                    expectationRating += (i + 1) * probabilitiesByInterval[i];
+                }
+
+                // TODO: Compute most likely value for MAE metric
+
+                lock (lockMe)
+                {
+                    // Keep OMF Distribution
+                    OMFDistributionByUserItem_out[new Tuple<int, int>(indexOfUser, indexOfItem)] = probabilitiesByInterval;
+                    // Keep the numerical prediction
+                    R_predicted_out[indexOfUser, indexOfItem] = expectationRating;
                 }
             });
-
-            // Flush to file
-            if (OMFDistributionFile != "")
-            {
-                // Flush and append to file
-                using (StreamWriter outfile = new StreamWriter(OMFDistributionFile, true))
-                {
-                    outfile.Write(distributionOutput);
-                }
-            }
             #endregion
 
-            return R_predicted;
+
+            /************************************************************
+             *   Generate OMF distributions for R_train as well
+            ************************************************************/
+            #region Generate OMF distributions for R_train as well
+            lockMe = new Object();
+            Parallel.ForEach(R_train.EnumerateIndexed(Zeros.AllowSkip), element =>
+            {
+                int indexOfUser = element.Item1;
+                int indexOfItem = element.Item2; ;
+                // This is the ordinal distribution of the current user
+                // given the internal score by MF
+                // e.g. what is the probability of each rating 1-5
+                List<double> probabilitiesByInterval = new List<double>(quantizer.Count);
+                double scoreFromScorer = R_scorer[indexOfUser, indexOfItem];
+                double pre = ComputeProbLE(scoreFromScorer, 0, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
+                probabilitiesByInterval[0] = pre;
+                for (int i = 1; i < intervalCount; i++)
+                {
+                    double pro = ComputeProbLE(scoreFromScorer, i, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
+                    probabilitiesByInterval[i] = pro - pre;
+                    pre = pro;
+                }
+
+                lock (lockMe)
+                {
+                    // Keep OMF Distribution
+                    OMFDistributionByUserItem_out[new Tuple<int, int>(indexOfUser, indexOfItem)] = probabilitiesByInterval;
+                }
+            });
+            #endregion
+
+            R_predicted = new RatingMatrix(R_predicted_out);
+            OMFDistributionByUserItem = OMFDistributionByUserItem_out;
+
+            return log.ToString();
         }
         #endregion
 

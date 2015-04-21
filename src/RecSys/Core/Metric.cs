@@ -22,7 +22,7 @@ namespace RecSys.Core
         }
         public static Matrix<double> GetCosineOfRows(RatingMatrix R)
         {
-            throw new NotImplementedException();
+            return ComputeSimilarities(R.Matrix, SimilarityMetric.CosineRating);
         }
         public static Matrix<double> GetPearsonOfColumns(RatingMatrix R)
         {
@@ -31,7 +31,7 @@ namespace RecSys.Core
         public static Matrix<double> GetCosineOfColumns(RatingMatrix R)
         {
             // Just rotate the matrix
-            throw new NotImplementedException();
+            return ComputeSimilarities(R.Matrix.Transpose(), SimilarityMetric.CosineRating);
         }
         public static Matrix<double> GetCosineOfPrefRelations(PrefRelations PR)
         {

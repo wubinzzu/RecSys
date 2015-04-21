@@ -19,10 +19,10 @@ namespace RecSys.Ordinal
         // The weights for item-item correlation features
         // It is the \vec{w} in the paper, and featureWeightByItemItem[i,j] is w_ij
         SparseMatrix featureWeightByItemItem;
-        Dictionary<Tuple<int, int>, double[]> OMFDistributions;
+        Dictionary<Tuple<int, int>, List<double>> OMFDistributions;
 
         public void PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown, 
-            Matrix<double> fullSimilarityByItemItem, Dictionary<Tuple<int, int>, double[]> OMFDistributions, 
+            Matrix<double> fullSimilarityByItemItem, Dictionary<Tuple<int, int>, List<double>> OMFDistributions, 
             double regularization, double learnRate, double minSimilarity, int maxEpoch, int ratingLevels, 
             out RatingMatrix R_predicted_expectations, out RatingMatrix R_predicted_mostlikely)
         {

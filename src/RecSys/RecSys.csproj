@@ -77,6 +77,7 @@
     <Compile Include="Evaluation\MAE.cs" />
     <Compile Include="Evaluation\NCDG.cs" />
     <Compile Include="Evaluation\RMSE.cs" />
+    <Compile Include="Experiments\ExperimentOfCIKM2015.cs" />
     <Compile Include="Numerical\RatingMatrix.cs" />
     <Compile Include="Numerical\RatingVector.cs" />
     <Compile Include="Ordinal\OMF.cs" />
@@ -93,10 +94,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="SolutionFiles\packages.config">
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="SolutionFiles\App.config" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.5">
@@ -115,6 +112,7 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
