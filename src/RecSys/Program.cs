@@ -15,7 +15,6 @@ using System.IO;
 using MyMediaLite.IO;
 using MyMediaLite.RatingPrediction;
 using MyMediaLite.Eval;
-using RecSys.ExperimentOfCIKM2015;
 using RecSys.Experiments;
 
 namespace RecSys
@@ -25,12 +24,18 @@ namespace RecSys
         static void Main(string[] args)
         {
             Control.UseMultiThreading();
-
-            Experiment aExperiment = new Experiment("100k.data", 60, 50, false, 1, 5.0, 50, 0.3);
+            //CIKMExpDesign.NMFonMovieLens20M();
+            ExperimentEngine aExperiment = new ExperimentEngine("MovieLens1M.data", 60, 50, true, 1, 5.0, 50, 0.3);
             aExperiment.GetReadyForOrdinal();
             aExperiment.GetReadyForNumerical();
             aExperiment.GetReadyAll();
             aExperiment.RunNMF(35, 0.1, 0.15, 30, 10);
+            Utils.Pause();
+
+            //Utils.RemoveColdUsers(70, "MovieLens20M.data");
+
+
+
             Utils.Pause();
         }
     }

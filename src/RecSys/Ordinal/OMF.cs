@@ -142,7 +142,7 @@ namespace RecSys.Ordinal
                     paramtersByUser[indexOfUser].betas = betas;
                 }
 
-                log.Append(Utils.PrintEpoch("user/total", indexOfUser, userCount, "Learned params",
+                log.AppendLine(Utils.PrintEpoch("user/total", indexOfUser, userCount, "Learned params",
                     String.Format("t1={0:0.000},betas={1}", t1, string.Concat(
                     betas.Select(i => string.Format("{0:0.00},", i))))));
             });
@@ -163,11 +163,11 @@ namespace RecSys.Ordinal
                 List<double> probabilitiesByInterval = new List<double>(quantizer.Count);
                 double scoreFromScorer = R_scorer[indexOfUser, indexOfItem];
                 double pre = ComputeProbLE(scoreFromScorer, 0, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
-                probabilitiesByInterval[0] = pre;
+                probabilitiesByInterval.Add( pre);
                 for (int i = 1; i < intervalCount; i++)
                 {
                     double pro = ComputeProbLE(scoreFromScorer, i, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
-                    probabilitiesByInterval[i] = pro - pre;
+                    probabilitiesByInterval.Add( pro - pre);
                     pre = pro;
                 }
 
@@ -206,11 +206,11 @@ namespace RecSys.Ordinal
                 List<double> probabilitiesByInterval = new List<double>(quantizer.Count);
                 double scoreFromScorer = R_scorer[indexOfUser, indexOfItem];
                 double pre = ComputeProbLE(scoreFromScorer, 0, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
-                probabilitiesByInterval[0] = pre;
+                probabilitiesByInterval.Add(pre);
                 for (int i = 1; i < intervalCount; i++)
                 {
                     double pro = ComputeProbLE(scoreFromScorer, i, paramtersByUser[indexOfUser].t1, paramtersByUser[indexOfUser].betas);
-                    probabilitiesByInterval[i] = pro - pre;
+                    probabilitiesByInterval.Add(pro - pre);
                     pre = pro;
                 }
 

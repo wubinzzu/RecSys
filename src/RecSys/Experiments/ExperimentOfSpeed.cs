@@ -10,7 +10,6 @@ namespace RecSys.Experiments
 {
     class ExperimentOfSpeed
     {
-
         #region Speed of accessing rows
         /// <summary>
         /// List indexing is 2000x faster than Matrix.Row() or enumeration.

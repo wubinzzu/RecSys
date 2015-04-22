@@ -26,7 +26,7 @@ namespace RecSys.Ordinal
         public void PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown, 
             HashSet<Tuple<int,int>> strongSimilarityIndicators, 
             Dictionary<Tuple<int, int>, List<double>> OMFDistributions, 
-            double regularization, double learnRate, double minSimilarity, int maxEpoch, int ratingLevels, 
+            double regularization, double learnRate, int maxEpoch, int ratingLevels, 
             out RatingMatrix R_predicted_expectations, out RatingMatrix R_predicted_mostlikely)
         {
             /************************************************************

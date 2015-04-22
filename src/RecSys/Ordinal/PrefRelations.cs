@@ -10,9 +10,10 @@ using System.Threading.Tasks;
 
 namespace RecSys.Ordinal
 {
+    [Serializable]
     public class PrefRelations
     {
-
+        public PrefRelations() { }
         #region Properties and accessors
         Dictionary<int, SparseMatrix> preferenceRelations;
         private Matrix<double> userSimilarities;

@@ -68,7 +68,9 @@ namespace RecSys.Ordinal
             return PR_predicted;
         }
 
-        private static void LearnLatentFeatures(PrefRelations PR_train, int maxEpoch, double learnRate, double regularizationOfUser, double regularizationOfItem, int factorCount, out Matrix<double> P, out Matrix<double> Q)
+        private static void LearnLatentFeatures(PrefRelations PR_train, int maxEpoch, 
+            double learnRate, double regularizationOfUser, double regularizationOfItem, 
+            int factorCount, out Matrix<double> P, out Matrix<double> Q)
         {
             //regularizationOfUser = 0;
             //regularizationOfItem = 0;

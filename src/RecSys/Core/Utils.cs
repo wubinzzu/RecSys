@@ -2,13 +2,18 @@
 using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
+using MsgPack.Serialization;
+using RecSys.Core;
+using RecSys.Experiments;
 using RecSys.Numerical;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
+using System.Threading;
 
 namespace RecSys
 {
@@ -19,6 +24,36 @@ namespace RecSys
     public class Utils
     {
         #region Data IO
+
+        #region Load and Save objects
+        public class IO<T>
+        {
+            public static T LoadObject(string fileName)
+            {
+                Stream inStream = new FileStream(
+                                        fileName,
+                                        FileMode.Open,
+                                        FileAccess.Read,
+                                        FileShare.Read);
+                BinaryFormatter bFormatter = new BinaryFormatter();
+                T myObject = (T)bFormatter.Deserialize(inStream);
+                inStream.Close();
+                return myObject;
+            }
+
+            public static void SaveObject(T objectToSave, string fileName)
+            {
+                Stream outStream = new FileStream(
+                                        fileName,
+                                        FileMode.Create,
+                                        FileAccess.Write,
+                                        FileShare.None);
+                BinaryFormatter bFormatter = new BinaryFormatter();
+                bFormatter.Serialize(outStream, objectToSave);
+                outStream.Close();
+            }
+        }
+        #endregion
 
         #region Load movielens dataset into SparseMatrix
         /// <summary>
@@ -46,6 +81,7 @@ namespace RecSys
             // Read the file to discover the whole matrix structure and mapping
             foreach (string line in File.ReadLines(fileOfDataSet))
             {
+                if (line == "") { continue; }
                 string[] tokens = line.Split(Config.SplitSeperators, StringSplitOptions.RemoveEmptyEntries);
                 int indexOfUser = int.Parse(tokens[0]);
                 int indexOfItem = int.Parse(tokens[1]);
@@ -107,54 +143,93 @@ namespace RecSys
             }
 
             // Process each line and put ratings into training/testing sets
-            foreach (string line in linesInFile)
+            List<SparseVector> R_test_list = new List<SparseVector>(userByIndex.Count);
+            List<SparseVector> R_train_list = new List<SparseVector>(userByIndex.Count);
+            for (int i = 0; i < userByIndex.Count;i++ )
             {
-                string[] tokens = line.Split(Config.SplitSeperators, StringSplitOptions.RemoveEmptyEntries);
-                int fileIndexOfUser = int.Parse(tokens[0]);
-                int fileIndexOfItem = int.Parse(tokens[1]);
-                double rating = double.Parse(tokens[2]);
-                if (userByIndex.ContainsKey(fileIndexOfUser))   // If this user was not removed
+                R_test_list.Add(new SparseVector(itemByIndex.Count));
+                R_train_list.Add(new SparseVector(itemByIndex.Count));
+            }
+
+                foreach (string line in linesInFile)
                 {
-                    int indexOfUser = userByIndex[fileIndexOfUser];
-                    int indexOfItem = itemByIndex[fileIndexOfItem];
-                    if (!trainCountByUser.ContainsKey(indexOfUser))
+                    if (line == "") { continue; }
+                    string[] tokens = line.Split(Config.SplitSeperators, StringSplitOptions.RemoveEmptyEntries);
+                    int fileIndexOfUser = int.Parse(tokens[0]);
+                    int fileIndexOfItem = int.Parse(tokens[1]);
+                    double rating = double.Parse(tokens[2]);
+                    if (userByIndex.ContainsKey(fileIndexOfUser))   // If this user was not removed
                     {
-                        // Fill up the train set
-                        R_train[indexOfUser, indexOfItem] = rating;
-                        trainCountByUser[indexOfUser] = 1;
-                    }
-                    else if (trainCountByUser[indexOfUser] < countOfRatingsForTrain)
-                    {
-                        // Fill up the train set
-                        R_train[indexOfUser, indexOfItem] = rating;
-                        trainCountByUser[indexOfUser]++;
-                    }
-                    else
-                    {
-                        // Fill up the test set
-                        R_test[indexOfUser, indexOfItem] = rating;
+                        int indexOfUser = userByIndex[fileIndexOfUser];
+                        int indexOfItem = itemByIndex[fileIndexOfItem];
+                        if (!trainCountByUser.ContainsKey(indexOfUser))
+                        {
+                            // Fill up the train set
+                            //R_train[indexOfUser, indexOfItem] = rating;
+                            R_train_list[indexOfUser][indexOfItem] = rating;
+                            trainCountByUser[indexOfUser] = 1;
+                        }
+                        else if (trainCountByUser[indexOfUser] < countOfRatingsForTrain)
+                        {
+                            // Fill up the train set
+                            //R_train.Matrix.Storage.At(indexOfUser, indexOfItem, rating);
+                            R_train_list[indexOfUser][indexOfItem] = rating;
+                            trainCountByUser[indexOfUser]++;
+                        }
+                        else
+                        {
+                            // Fill up the test set
+                            R_test_list[indexOfUser][indexOfItem] = rating;
+                            //R_test.Matrix.Storage.At(indexOfUser, indexOfItem, rating);
+                        }
                     }
                 }
-            }
+                R_test = new RatingMatrix(SparseMatrix.OfRowVectors(R_test_list));
+                R_train = new RatingMatrix(SparseMatrix.OfRowVectors(R_train_list));
 
             Debug.Assert(userByIndex.Count * countOfRatingsForTrain == R_train.NonZerosCount);
         }
         #endregion
 
-        public static void WriteMovieLens(RatingMatrix R, string fileName)
+        public static void RemoveColdUsers(int minRatingCount, string fileOfDataSet)
         {
             StringBuilder output = new StringBuilder();
-            foreach (var element in R.Matrix.EnumerateIndexed(Zeros.AllowSkip))
+            Dictionary<int, int> ratingCountByUser = new Dictionary<int, int>(); // count how many ratings of each user
+
+            // Read the file to discover the whole matrix structure and mapping
+            foreach (string line in File.ReadLines(fileOfDataSet))
             {
-                double indexOfUser = element.Item1;
-                double indexOfItem = element.Item2;
-                double rating = element.Item3;
-                output.AppendFormat("{0},{1},{2}\n", indexOfUser, indexOfItem, rating);
+                string[] tokens = line.Split(Config.SplitSeperators, StringSplitOptions.RemoveEmptyEntries);
+                int indexOfUser = int.Parse(tokens[0]);
+                if (!ratingCountByUser.ContainsKey(indexOfUser))          // We update index only for new user
+                {
+                    ratingCountByUser[indexOfUser] = 1;             // Initialize the rating count for this new user
+                }
+                else { ratingCountByUser[indexOfUser]++; }
             }
-            // Flush and append to file
-            using (StreamWriter outfile = new StreamWriter(fileName))
+
+            // Remove users with too few ratings
+            foreach (string line in File.ReadLines(fileOfDataSet))
             {
-                outfile.Write(output);
+                string[] tokens = line.Split(Config.SplitSeperators, StringSplitOptions.RemoveEmptyEntries);
+                int indexOfUser = int.Parse(tokens[0]);
+                if (ratingCountByUser[indexOfUser] >= minRatingCount)
+                {
+                    output.AppendLine(tokens[0] + "," + tokens[1] + "," + tokens[2]);
+                    if (output.Length > 1000000)
+                    {
+                        using (StreamWriter w = File.AppendText(minRatingCount + "PlusRatings_" + fileOfDataSet))
+                        {
+                            w.WriteLine(output);
+                            output.Clear();
+                        }
+                    }
+                }
+            }
+            using (StreamWriter w = File.AppendText(minRatingCount + "PlusRatings_" + fileOfDataSet))
+            {
+                w.WriteLine(output);
+                output.Clear();
             }
         }
 
@@ -280,7 +355,7 @@ namespace RecSys
             StringBuilder log = new StringBuilder();
             if (alwaysPrint || epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
             {
-                log.Append(PrintValue(label2 + "@" + label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", message));
+                log.AppendLine(PrintValue(label2 + "@" + label1 + " (" + (epoch + 1) + "/" + maxEpoch + ")", message));
             }
 
             return log.ToString();
@@ -331,6 +406,7 @@ namespace RecSys
         #endregion
 
         #region Load OMF
+        /*
         public static Dictionary<Tuple<int, int>, double[]> LoadOMFDistributions(string fileName)
         {
             Dictionary<Tuple<int, int>, double[]> OMFDistributions = new Dictionary<Tuple<int, int>, double[]>();
@@ -348,6 +424,7 @@ namespace RecSys
 
             return OMFDistributions;
         }
+        */
         #endregion
 
         #region Obsolete

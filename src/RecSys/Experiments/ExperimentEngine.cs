@@ -1,5 +1,4 @@
 ﻿using MathNet.Numerics.LinearAlgebra;
-using MathNet.Numerics.LinearAlgebra.Double;
 using RecSys.Core;
 using RecSys.Evaluation;
 using RecSys.Numerical;
@@ -10,10 +9,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace RecSys.ExperimentOfCIKM2015
+namespace RecSys.Experiments
 {
     [Serializable]
-    public class Experiment
+    public class ExperimentEngine
     {
         /************************************************************
          *   R_train     => Rating Matrix train set
@@ -55,7 +54,7 @@ namespace RecSys.ExperimentOfCIKM2015
         #endregion
 
         #region Constructor
-        public Experiment(string dataSetFile, int minCountOfRatings,
+        public ExperimentEngine(string dataSetFile, int minCountOfRatings,
             int countOfRatingsForTrain, bool shuffleData, int seed, double relevantItemCriteria,
             int maxCountOfNeighbors, double strongSimilarityThreshold)
         {
@@ -70,7 +69,7 @@ namespace RecSys.ExperimentOfCIKM2015
             ReadyForOrdinal = false;
             StrongSimilarityThreshold = strongSimilarityThreshold;
         }
-        public Experiment() { }
+        public ExperimentEngine() { }
         #endregion
 
         #region GetDataFileName
@@ -98,7 +97,7 @@ namespace RecSys.ExperimentOfCIKM2015
             StringBuilder log = new StringBuilder();
             Utils.StartTimer();
 
-            log.Append(Utils.PrintHeading("Create R_train/R_test sets from " + DataSetFile));
+            log.AppendLine(Utils.PrintHeading("Create R_train/R_test sets from " + DataSetFile));
             Utils.LoadMovieLensSplitByCount(DataSetFile, out R_train,
                 out R_test, MinCountOfRatings, CountOfRatingsForTrain, ShuffleData, Seed);
 
@@ -109,11 +108,11 @@ namespace RecSys.ExperimentOfCIKM2015
 
             R_unknown = R_test.IndexesOfNonZeroElements();
 
-            log.Append(Utils.PrintValue("Relevant item criteria", RelevantItemCriteria.ToString("0.0")));
+            log.AppendLine(Utils.PrintValue("Relevant item criteria", RelevantItemCriteria.ToString("0.0")));
             RelevantItemsByUser = ItemRecommendationCore.GetRelevantItemsByUser(R_test, RelevantItemCriteria);
-            log.Append(Utils.PrintValue("Mean # of relevant items per user",
+            log.AppendLine(Utils.PrintValue("Mean # of relevant items per user",
                 RelevantItemsByUser.Average(k => k.Value.Count).ToString("0")));
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             #region Prepare similarity data
             if (File.Exists("USR_" + GetDataFileName())
@@ -122,17 +121,17 @@ namespace RecSys.ExperimentOfCIKM2015
             {
                 Utils.StartTimer();
                 Utils.PrintHeading("Load user-user similarities (rating based)");
-                UserSimilaritiesOfRating = Utils.LoadSimilarityData( "UserRating_" + GetDataFileName());
+                UserSimilaritiesOfRating = Utils.IO<SimilarityData>.LoadObject("USR_" + GetDataFileName());
                 Utils.StopTimer();
 
                 Utils.StartTimer();
                 Utils.PrintHeading("Load item-item similarities (rating based)");
-                ItemSimilaritiesOfRating = Utils.LoadSimilarityData("ItemRating_" + GetDataFileName());
+                ItemSimilaritiesOfRating = Utils.IO<SimilarityData>.LoadObject("ISR_" + GetDataFileName());
                 Utils.StopTimer();
 
                 Utils.StartTimer();
                 Utils.PrintHeading("Load item-item strong similarity indicators (rating based)");
-                StrongSimilarityIndicatorsByItemRating = Utils.LoadHashSet("SSIIR_" + GetDataFileName());
+                StrongSimilarityIndicatorsByItemRating = Utils.IO<HashSet<Tuple<int, int>>>.LoadObject("SSIIR_" + GetDataFileName());
                 Utils.StopTimer();
             }
             else
@@ -143,7 +142,7 @@ namespace RecSys.ExperimentOfCIKM2015
                     out UserSimilaritiesOfRating);
                 if (saveLoadedData) 
                 {
-                    Utils.SaveSimilarityData(UserSimilaritiesOfRating, "USR_" + GetDataFileName());
+                    Utils.IO<SimilarityData>.SaveObject(UserSimilaritiesOfRating, "USR_" + GetDataFileName());
                 }
                 Utils.StopTimer();
 
@@ -153,8 +152,9 @@ namespace RecSys.ExperimentOfCIKM2015
                     out ItemSimilaritiesOfRating, out StrongSimilarityIndicatorsByItemRating);
                 if (saveLoadedData)
                 {
-                    Utils.SaveSimilarityData(ItemSimilaritiesOfRating, "ISR_" + GetDataFileName());
-                    Utils.SaveHashSet(StrongSimilarityIndicatorsByItemRating, "SSIIR_" + GetDataFileName());
+                    Utils.IO<SimilarityData>.SaveObject(ItemSimilaritiesOfRating, "ISR_" + GetDataFileName());
+                    Utils.IO<HashSet<Tuple<int,int>>>
+                        .SaveObject(StrongSimilarityIndicatorsByItemRating, "SSIIR_" + GetDataFileName());
                 }
                 Utils.StopTimer();
             }
@@ -174,17 +174,17 @@ namespace RecSys.ExperimentOfCIKM2015
 
             StringBuilder log = new StringBuilder();
             Utils.StartTimer();
-            log.Append(Utils.PrintHeading("Prepare preferecen relation data"));
+            log.AppendLine(Utils.PrintHeading("Prepare preferecen relation data"));
 
             Console.WriteLine("Converting R_train into PR_train");
             log.AppendLine("Converting R_train into PR_train");
-            PrefRelations PR_train = PrefRelations.CreateDiscrete(R_train);
+            PR_train = PrefRelations.CreateDiscrete(R_train);
 
             Console.WriteLine("Converting R_test into PR_test");
             log.AppendLine("Converting R_test into PR_test");
-            PrefRelations PR_test = PrefRelations.CreateDiscrete(R_test);
+            PR_test = PrefRelations.CreateDiscrete(R_test);
 
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             #region Prepare similarity data
             if (File.Exists("USP_" + GetDataFileName())
@@ -193,10 +193,10 @@ namespace RecSys.ExperimentOfCIKM2015
             {
 
                 Utils.StartTimer();
-                Utils.PrintHeading("Load user-user similarities (Pref based)");
-                UserSimilaritiesOfPref = Utils.LoadSimilarityData("USP_" + GetDataFileName());
-                ItemSimilaritiesOfPref = Utils.LoadSimilarityData("ISP_" + GetDataFileName());
-                StrongSimilarityIndicatorsByItemPref = Utils.LoadHashSet("SSIIP_" + GetDataFileName());
+                Utils.PrintHeading("Load user, item, indicators variables (Pref based)");
+                UserSimilaritiesOfPref = Utils.IO<SimilarityData>.LoadObject("USP_" + GetDataFileName());
+                ItemSimilaritiesOfPref = Utils.IO<SimilarityData>.LoadObject("ISP_" + GetDataFileName());
+                StrongSimilarityIndicatorsByItemPref = Utils.IO<HashSet<Tuple<int,int>>>.LoadObject("SSIIP_" + GetDataFileName());
                 Utils.StopTimer();
             }
             else
@@ -218,9 +218,10 @@ namespace RecSys.ExperimentOfCIKM2015
 
                 if (saveLoadedData)
                 {
-                    Utils.SaveSimilarityData(UserSimilaritiesOfPref, "USP_" + GetDataFileName());
-                    Utils.SaveSimilarityData(ItemSimilaritiesOfPref, "ISP_" + GetDataFileName());
-                    Utils.SaveHashSet(StrongSimilarityIndicatorsByItemPref, "SSIIP_" + GetDataFileName());
+                    Utils.IO<SimilarityData>.SaveObject(UserSimilaritiesOfPref, "USP_" + GetDataFileName());
+                    Utils.IO<SimilarityData>.SaveObject(ItemSimilaritiesOfPref, "ISP_" + GetDataFileName());
+                    Utils.IO<HashSet<Tuple<int,int>>>
+                        .SaveObject(StrongSimilarityIndicatorsByItemPref, "SSIIP_" + GetDataFileName());
                 }
                 Utils.StopTimer();
 
@@ -240,9 +241,9 @@ namespace RecSys.ExperimentOfCIKM2015
         {
             StringBuilder log = new StringBuilder();
             if(!ReadyForNumerical)
-                log.Append(GetReadyForNumerical());
+                log.AppendLine(GetReadyForNumerical());
             if(!ReadyForOrdinal)
-                log.Append(GetReadyForOrdinal());
+                log.AppendLine(GetReadyForOrdinal());
 
             return log.ToString();
         }
@@ -254,19 +255,19 @@ namespace RecSys.ExperimentOfCIKM2015
         /// </summary>
         public string RunGlobalMean()
         {
-            if (!ReadyForNumerical) { return "Please setup experiment first."; }
+            if (!ReadyForNumerical) { GetReadyForNumerical(); }
             StringBuilder log = new StringBuilder();
-            log.Append(Utils.PrintHeading("Global Mean"));
+            log.AppendLine(Utils.PrintHeading("Global Mean"));
 
             // Prediction
             Utils.StartTimer();
             double globalMean = R_train.GetGlobalMean();
             RatingMatrix R_predicted = R_unknown.Multiply(globalMean);
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // Numerical Evaluation
-            log.Append(Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000")));
-            log.Append(Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000")));
+            log.AppendLine(Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000")));
+            log.AppendLine(Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000")));
 
             return log.ToString();
         }
@@ -278,9 +279,9 @@ namespace RecSys.ExperimentOfCIKM2015
         /// </summary>
         public string RunMostPopular(int topN)
         {
-            if (!ReadyForNumerical) { return "Please setup experiment first."; }
+            if (!ReadyForNumerical) { GetReadyForNumerical(); }
             StringBuilder log = new StringBuilder();
-            log.Append(Utils.PrintHeading("Most popular"));
+            log.AppendLine(Utils.PrintHeading("Most popular"));
 
             // Prediction
             Utils.StartTimer();
@@ -293,12 +294,12 @@ namespace RecSys.ExperimentOfCIKM2015
                 R_predicted[indexOfUser, indexOfItem] = meanByItem[indexOfItem];
             }
             var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // TopN Evaluation
             for (int n = 1; n <= topN; n++)
             {
-                log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
+                log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
             }
 
             return log.ToString();
@@ -312,19 +313,19 @@ namespace RecSys.ExperimentOfCIKM2015
         public string RunNMF(int maxEpoch, double learnRate, double regularization,
             int factorCount, int topN = 0)
         {
-            if (!ReadyForNumerical) { return "Please setup experiment first."; }
+            if (!ReadyForNumerical) { GetReadyForNumerical(); }
             StringBuilder log = new StringBuilder();
-            log.Append(Utils.PrintHeading("NMF"));
+            log.AppendLine(Utils.PrintHeading("NMF"));
 
             // Prediction
             Utils.StartTimer();
             RatingMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, maxEpoch,
                 learnRate, regularization, factorCount);
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // Numerical Evaluation
-            log.Append(Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000")));
-            log.Append(Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000")));
+            log.AppendLine(Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000")));
+            log.AppendLine(Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000")));
 
             // TopN Evaluation
             if (topN != 0)
@@ -332,7 +333,7 @@ namespace RecSys.ExperimentOfCIKM2015
                 var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
                 for (int n = 1; n <= topN; n++)
                 {
-                    log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
+                    log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
                 }
             }
 
@@ -343,18 +344,18 @@ namespace RecSys.ExperimentOfCIKM2015
         #region UserKNN
         public string RunUserKNN(int neighborCount, int topN = 0)
         {
-            if (!ReadyForNumerical) { return "Please setup experiment first."; }
+            if (!ReadyForNumerical) { GetReadyForNumerical(); }
             StringBuilder log = new StringBuilder();
-            log.Append(Utils.PrintHeading("UserKNN"));
+            log.AppendLine(Utils.PrintHeading("UserKNN"));
 
             // Prediction
             Utils.StartTimer();
             RatingMatrix R_predicted = Numerical.UserKNN.PredictRatings(R_train, R_unknown, UserSimilaritiesOfRating, neighborCount);
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // Numerical Evaluation
-            log.Append(Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000")));
-            log.Append(Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000")));
+            log.AppendLine(Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000")));
+            log.AppendLine(Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000")));
 
             // TopN Evaluation
             if (topN != 0)
@@ -374,15 +375,15 @@ namespace RecSys.ExperimentOfCIKM2015
         public string RunPrefNMF(int maxEpoch, double learnRate, double regularizationOfUser,
             double regularizationOfItem, int factorCount, int topN = 10)
         {
-            if (!ReadyForOrdinal) { return "Please setup experiment first."; }
+            if (!ReadyForOrdinal) { GetReadyForOrdinal(); }
             StringBuilder log = new StringBuilder();
-            log.Append(Utils.PrintHeading("PrefNMF"));
+            log.AppendLine(Utils.PrintHeading("PrefNMF"));
 
             // Prediction
             Utils.StartTimer();
             RatingMatrix R_predicted = PrefNMF.PredictRatings(PR_train, R_unknown,
                 maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount);
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // Evaluation
             var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
@@ -398,14 +399,14 @@ namespace RecSys.ExperimentOfCIKM2015
         #region PrefKNN
         public string RunPrefKNN(int neighborCount, int topN = 10)
         {
-            if (!ReadyForOrdinal) { return "Please setup experiment first."; }
+            if (!ReadyForOrdinal) { GetReadyForOrdinal(); }
             StringBuilder log = new StringBuilder();
-            log.Append(Utils.PrintHeading("PrefKNN"));
+            log.AppendLine(Utils.PrintHeading("PrefKNN"));
 
             // Prediction
             Utils.StartTimer();
             RatingMatrix R_predicted = PrefUserKNN.PredictRatings(PR_train, R_unknown, neighborCount, UserSimilaritiesOfPref);
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // TopN Evaluation
             var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
@@ -419,13 +420,23 @@ namespace RecSys.ExperimentOfCIKM2015
         #endregion
 
         #region PrefMRF: PrefNMF based ORF
-        public string RunPrefMRF(Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem,
-            double regularization, double learnRate, double minSimilarity, int maxEpoch, List<double> quantizer,
+        public string RunPrefMRF(double regularization, double learnRate, double minSimilarity, int maxEpoch, List<double> quantizer,
             int topN = 10)
         {
-            if (!ReadyForOrdinal) { return "Please setup experiment first."; }
+            // Load OMFDistribution from file
+            Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem;
+            if (File.Exists("PrefOMF_" + GetDataFileName()))
+            {
+                OMFDistributionByUserItem = Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.LoadObject("PrefOMF_" + GetDataFileName());
+            }
+            else
+            {
+                return "Abort, Run OMF first.";
+            }
+
+            if (!ReadyForOrdinal) { GetReadyForOrdinal(); }
             StringBuilder log = new StringBuilder();
-            log.Append(Utils.PrintHeading("PrefMRF: PrefNMF based ORF"));
+            log.AppendLine(Utils.PrintHeading("PrefMRF: PrefNMF based ORF"));
 
             // Prediction
             Utils.StartTimer();
@@ -437,22 +448,23 @@ namespace RecSys.ExperimentOfCIKM2015
             R_train_positions.Quantization(quantizer[0], quantizer[quantizer.Count - 1] - quantizer[0], quantizer);
 
             ORF orf = new ORF();
-            orf.PredictRatings( R_train_positions, R_unknown, StrongSimilarityIndicatorsByItemPref, 
-                OMFDistributionByUserItem, regularization, learnRate, minSimilarity, maxEpoch, quantizer.Count,
-                out R_predicted_expectations, out R_predicted_mostlikely);
-            log.Append(Utils.StopTimer());
+            orf.PredictRatings( R_train_positions, R_unknown, StrongSimilarityIndicatorsByItemPref,
+                OMFDistributionByUserItem, regularization, learnRate, maxEpoch, 
+                quantizer.Count, out R_predicted_expectations, out R_predicted_mostlikely);
+          
+            log.AppendLine(Utils.StopTimer());
 
             // Evaluation
             var topNItemsByUser_expectations = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_expectations, topN);
             var topNItemsByUser_mostlikely = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_mostlikely, topN);
             for (int n = 1; n <= topN; n++)
             {
-                log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser,
+                log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser,
                     topNItemsByUser_expectations, n).ToString("0.0000")));
             }
             for (int n = 1; n <= topN; n++)
             {
-                log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser,
+                log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser,
                     topNItemsByUser_mostlikely, n).ToString("0.0000")));
             }
 
@@ -461,13 +473,23 @@ namespace RecSys.ExperimentOfCIKM2015
         #endregion
 
         #region NMF based ORF
-        public string RunNMFbasedORF(Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem,
-            double regularization, double learnRate, double minSimilarity, int maxEpoch, List<double> quantizer,
-            int topN = 0)
+        public string RunNMFbasedORF(double regularization, double learnRate, 
+            int maxEpoch, List<double> quantizer, int topN = 0)
         {
-            if (!ReadyForNumerical) { return "Please setup experiment first."; }
+            // Load OMFDistribution from file
+            Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem;
+            if (File.Exists("RatingOMF_" + GetDataFileName()))
+            {
+                OMFDistributionByUserItem = Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.LoadObject("RatingOMF_" + GetDataFileName());
+            }
+            else
+            {
+                return "Abort, Run OMF first.";
+            }
+
+            if (!ReadyForNumerical) { GetReadyForNumerical(); }
             StringBuilder log = new StringBuilder();
-            log.Append(Utils.PrintHeading("NMF based ORF"));
+            log.AppendLine(Utils.PrintHeading("NMF based ORF"));
 
             // Prediction
             Utils.StartTimer();
@@ -475,13 +497,13 @@ namespace RecSys.ExperimentOfCIKM2015
             RatingMatrix R_predicted_mostlikely;
             ORF orf = new ORF();
             orf.PredictRatings( R_train, R_unknown, StrongSimilarityIndicatorsByItemRating, 
-                OMFDistributionByUserItem, regularization, learnRate, minSimilarity, maxEpoch, 
+                OMFDistributionByUserItem, regularization, learnRate, maxEpoch, 
                 quantizer.Count, out R_predicted_expectations, out R_predicted_mostlikely);
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // Numerical Evaluation
-            log.Append(Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted_expectations).ToString("0.0000")));
-            log.Append(Utils.PrintValue("MAE", RMSE.Evaluate(R_test, R_predicted_mostlikely).ToString("0.0000")));
+            log.AppendLine(Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted_expectations).ToString("0.0000")));
+            log.AppendLine(Utils.PrintValue("MAE", RMSE.Evaluate(R_test, R_predicted_mostlikely).ToString("0.0000")));
 
             // Top-N Evaluation
             if (topN != 0)
@@ -490,11 +512,11 @@ namespace RecSys.ExperimentOfCIKM2015
                 var topNItemsByUser_mostlikely = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_mostlikely, topN);
                 for (int n = 1; n <= topN; n++)
                 {
-                    log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser_expectations, n).ToString("0.0000")));
+                    log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser_expectations, n).ToString("0.0000")));
                 }
                 for (int n = 1; n <= topN; n++)
                 {
-                    log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser_mostlikely, n).ToString("0.0000")));
+                    log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser_mostlikely, n).ToString("0.0000")));
                 }
             }
 
@@ -504,17 +526,11 @@ namespace RecSys.ExperimentOfCIKM2015
 
         #region PrefNMF based OMF
         public string RunPrefNMFbasedOMF(int maxEpoch, double learnRate, double regularizationOfUser,
-            double regularizationOfItem, int factorCount, List<double> quantizer,
-            out Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem,
-            int topN, Dictionary<int, List<int>> relevantItemsByUser)
+            double regularizationOfItem, int factorCount, List<double> quantizer, int topN)
         {
-            if (!ReadyForOrdinal)
-            {
-                OMFDistributionByUserItem = null;
-                return "Please setup experiment first.";
-            }
+            if (!ReadyForOrdinal) { GetReadyForOrdinal(); }
             StringBuilder log = new StringBuilder();
-            log.Append(Utils.PrintHeading("PrefNMF based OMF"));
+            log.AppendLine(Utils.PrintHeading("PrefNMF based OMF"));
 
             // =============PrefNMF prediction on Train+Unknown============
             // Get ratings from scorer, for both train and test
@@ -540,21 +556,28 @@ namespace RecSys.ExperimentOfCIKM2015
             //PR_train.quantization(0, 1.0, new List<double> { Config.Preferences.LessPreferred, Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });
             RatingMatrix R_train_positions = new RatingMatrix(PR_train.GetPositionMatrix());
             R_train_positions.Quantization(quantizer[0], quantizer[quantizer.Count - 1] - quantizer[0], quantizer);
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // =============OMF prediction on Train+Unknown============
-            log.Append(Utils.PrintHeading("Ordinal Matrix Factorization with PrefNMF as scorer"));
+            log.AppendLine(Utils.PrintHeading("Ordinal Matrix Factorization with PrefNMF as scorer"));
             Utils.StartTimer();
+            Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem;
             RatingMatrix R_predicted;
-            log.Append(OMF.PredictRatings(R_train_positions.Matrix, R_unknown.Matrix, R_predictedByPrefNMF.Matrix,
+            log.AppendLine(OMF.PredictRatings(R_train_positions.Matrix, R_unknown.Matrix, R_predictedByPrefNMF.Matrix,
                 quantizer, out R_predicted, out OMFDistributionByUserItem));
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // TopN Evaluation
             var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
             for (int n = 1; n <= topN; n++)
             {
-                log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
+                log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
+            }
+
+            // Save OMFDistribution to file
+            if (!File.Exists("PrefOMF_" + GetDataFileName()))
+            {
+                Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.SaveObject(OMFDistributionByUserItem, "PrefOMF_" + GetDataFileName());
             }
 
             return log.ToString();
@@ -563,16 +586,11 @@ namespace RecSys.ExperimentOfCIKM2015
 
         #region NMF based OMF
         public string RunNMFbasedOMF(int maxEpoch, double learnRate, double regularization, int factorCount,
-            List<double> quantizer, out Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem,
-            int topN = 0)
+            List<double> quantizer, int topN = 0)
         {
-            if (!ReadyForNumerical)
-            {
-                OMFDistributionByUserItem = null;
-                return "Please setup experiment first.";
-            }
+            if (!ReadyForNumerical) { GetReadyForNumerical(); }
             StringBuilder log = new StringBuilder();
-            log.Append(Utils.PrintHeading("NMF based OMF"));
+            log.AppendLine(Utils.PrintHeading("NMF based OMF"));
 
             // NMF Prediction
             // Get ratings from scorer, for both train and test
@@ -583,19 +601,20 @@ namespace RecSys.ExperimentOfCIKM2015
             Utils.StartTimer();
             RatingMatrix R_predictedByNMF = NMF.PredictRatings(R_train, R_all, maxEpoch,
                 learnRate, regularization, factorCount);
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // OMF Prediction
-            log.Append(Utils.PrintHeading("Ordinal Matrix Factorization with NMF as scorer"));
+            log.AppendLine(Utils.PrintHeading("Ordinal Matrix Factorization with NMF as scorer"));
             Utils.StartTimer();
+            Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem;
             RatingMatrix R_predicted;
-            log.Append(OMF.PredictRatings(R_train.Matrix, R_unknown.Matrix, R_predictedByNMF.Matrix,
+            log.AppendLine(OMF.PredictRatings(R_train.Matrix, R_unknown.Matrix, R_predictedByNMF.Matrix,
                 quantizer, out R_predicted, out OMFDistributionByUserItem));
-            log.Append(Utils.StopTimer());
+            log.AppendLine(Utils.StopTimer());
 
             // Numerical Evaluation
-            log.Append(Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000")));
-            log.Append(Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000")));
+            log.AppendLine(Utils.PrintValue("RMSE", RMSE.Evaluate(R_test, R_predicted).ToString("0.0000")));
+            log.AppendLine(Utils.PrintValue("MAE", MAE.Evaluate(R_test, R_predicted).ToString("0.0000")));
 
             // TopN Evaluation
             if (topN != 0)
@@ -603,8 +622,14 @@ namespace RecSys.ExperimentOfCIKM2015
                 var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
                 for (int n = 1; n <= topN; n++)
                 {
-                    log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
+                    log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
                 }
+            }
+
+            // Save OMFDistribution to file
+            if(!File.Exists("RatingOMF_" + GetDataFileName()))
+            {
+                Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.SaveObject(OMFDistributionByUserItem, "RatingOMF_" + GetDataFileName());
             }
 
             return log.ToString();

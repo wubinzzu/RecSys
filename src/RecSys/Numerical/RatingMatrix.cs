@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 
 namespace RecSys.Numerical
 {
+    [Serializable]
     public class RatingMatrix
     {
         #region Variables
@@ -104,11 +105,9 @@ namespace RecSys.Numerical
                 ratingMatrixNormalized[indexOfUser, indexOfItem] = ((newMax - newMin) * 
                     (value==Config.ZeroInSparseMatrix?0:value - oldMin) / (oldMax - oldMin) + newMin);
             }
-            Utils.WriteMatrix(ratingMatrix, "old.csv");
             //TODO: Check why MapInplace will change zero elements??
             //ratingMatrix.MapInplace(x => x = ((toMax - toMin) * (x - min) / (max - min) + toMin), Zeros.AllowSkip;
             ratingMatrix = ratingMatrixNormalized;
-            Utils.WriteMatrix(ratingMatrix, "new.csv");
         }
 
 
