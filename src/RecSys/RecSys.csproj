@@ -56,6 +56,9 @@
     <Reference Include="MathNet.Numerics.Data.Text">
       <HintPath>..\..\packages\MathNet.Numerics.Data.Text.3.1.0\lib\net40\MathNet.Numerics.Data.Text.dll</HintPath>
     </Reference>
+    <Reference Include="MsgPack">
+      <HintPath>..\..\packages\MsgPack.Cli.0.5.11\lib\net45\MsgPack.dll</HintPath>
+    </Reference>
     <Reference Include="MyMediaLite">
       <HintPath>..\..\packages\MyMediaLite.3.10\lib\net40\MyMediaLite.dll</HintPath>
     </Reference>
@@ -73,11 +76,13 @@
     <Compile Include="Core\ItemRecommendationCore.cs" />
     <Compile Include="Core\KNNCore.cs" />
     <Compile Include="Core\Metric.cs" />
+    <Compile Include="Core\SimilarityData.cs" />
     <Compile Include="Core\SpecialFunctions.cs" />
     <Compile Include="Evaluation\MAE.cs" />
     <Compile Include="Evaluation\NCDG.cs" />
     <Compile Include="Evaluation\RMSE.cs" />
     <Compile Include="Experiments\ExperimentOfCIKM2015.cs" />
+    <Compile Include="Experiments\ExperimentOfSpeed.cs" />
     <Compile Include="Numerical\RatingMatrix.cs" />
     <Compile Include="Numerical\RatingVector.cs" />
     <Compile Include="Ordinal\OMF.cs" />

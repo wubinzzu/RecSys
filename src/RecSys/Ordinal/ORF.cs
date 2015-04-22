@@ -15,14 +15,17 @@ namespace RecSys.Ordinal
         Vector<double> meanByUser;
         Vector<double> meanByItem;
         RatingMatrix R_train;
-        SparseMatrix similarityByItemItem;
+        HashSet<Tuple<int, int>> strongSimilarityIndicators;
         // The weights for item-item correlation features
         // It is the \vec{w} in the paper, and featureWeightByItemItem[i,j] is w_ij
-        SparseMatrix featureWeightByItemItem;
+        //SparseMatrix featureWeightByItemItem;
+        Dictionary<Tuple<int, int>, double> featureWeightByItemItem;
+
         Dictionary<Tuple<int, int>, List<double>> OMFDistributions;
 
         public void PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown, 
-            Matrix<double> fullSimilarityByItemItem, Dictionary<Tuple<int, int>, List<double>> OMFDistributions, 
+            HashSet<Tuple<int,int>> strongSimilarityIndicators, 
+            Dictionary<Tuple<int, int>, List<double>> OMFDistributions, 
             double regularization, double learnRate, double minSimilarity, int maxEpoch, int ratingLevels, 
             out RatingMatrix R_predicted_expectations, out RatingMatrix R_predicted_mostlikely)
         {
@@ -39,30 +42,26 @@ namespace RecSys.Ordinal
             R_predicted_expectations = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
             R_predicted_mostlikely = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
 
-            featureWeightByItemItem = new SparseMatrix(itemCount); 
 
             // Initialize the weights
-            // Remove weak similarities so that the # of features is limited, see paper for more details
-            fullSimilarityByItemItem.CoerceZero(minSimilarity);
-            similarityByItemItem = SparseMatrix.OfMatrix(fullSimilarityByItemItem);    // After removed weak similarities the matrix should be sparse
+            this.strongSimilarityIndicators = strongSimilarityIndicators;
+            featureWeightByItemItem = new Dictionary<Tuple<int, int>, double>(strongSimilarityIndicators.Count);
+
             // Initialize all strong item-item features
             Random rnd = new Random(Config.Seed);
-            foreach(var element in similarityByItemItem.EnumerateIndexed(Zeros.AllowSkip))
+            
+            foreach(var strongSimilarityPair in strongSimilarityIndicators)
             {
-                int indexOfItem_i = element.Item1;
-                int indexOfItem_j = element.Item2;
                 double randomWeight = rnd.NextDouble() * 0.01;
-                featureWeightByItemItem[indexOfItem_i, indexOfItem_j] = randomWeight;
-                featureWeightByItemItem[indexOfItem_j, indexOfItem_i] = randomWeight;
+                featureWeightByItemItem[strongSimilarityPair] = randomWeight;
             }
-            Debug.Assert(similarityByItemItem.NonZerosCount == featureWeightByItemItem.NonZerosCount);
 
             // We cache here which items have been rated by the given user
             // it will be reused in every feature update
             Dictionary<int, List<int>> itemsByUser = R_train.GetItemsByUser();
 
             // TODO: we actually stored more features, because some items may not be co-rated by any user
-            Utils.PrintValue("# of item-item features", (featureWeightByItemItem.NonZerosCount / 2).ToString());
+            Utils.PrintValue("# of item-item features", (featureWeightByItemItem.Count / 2).ToString());
 
             #endregion
 
@@ -104,7 +103,7 @@ namespace RecSys.Ordinal
                         // Remove weak neighbors
                         foreach (int indexOfNeighbor in itemsOfUser)
                         {
-                            if (similarityByItemItem[indexOfItem_i, indexOfNeighbor] != SparseMatrix.Zero
+                            if (strongSimilarityIndicators.Contains(new Tuple<int,int>(indexOfItem_i, indexOfNeighbor))
                                 && indexOfNeighbor != indexOfItem_i)
                             {
                                 neighborsOfItem_i.Add(indexOfNeighbor);
@@ -191,17 +190,15 @@ namespace RecSys.Ordinal
                             #region Update weights
 
                             // Add regularization penalty, it should be shown in either Eq. 23 or Eq. 24
-                            double weight = featureWeightByItemItem[indexOfItem_i, indexOfItem_j];
+                            double weight = featureWeightByItemItem[new Tuple<int,int>( indexOfItem_i, indexOfItem_j)];
                             gradient -= regularization * weight;
                             double step = learnRate * gradient; // Add learning rate
 
                             // Update the weight with gradient
-                            featureWeightByItemItem[indexOfItem_i, indexOfItem_j] += step;
+                            featureWeightByItemItem[new Tuple<int, int>(indexOfItem_i, indexOfItem_j)] += step;
 
                             // The weights are mirrored
-                            featureWeightByItemItem[indexOfItem_j, indexOfItem_i] += step;
-
-                            Debug.Assert(featureWeightByItemItem[indexOfItem_i, indexOfItem_j] == featureWeightByItemItem[indexOfItem_j, indexOfItem_i]);
+                            featureWeightByItemItem[new Tuple<int, int>(indexOfItem_j, indexOfItem_i)] += step;
 
                             #endregion
                         }
@@ -245,7 +242,7 @@ namespace RecSys.Ordinal
                             // Remove weak neighbors
                             foreach (int indexOfNeighbor in itemsOfUser)
                             {
-                                if (similarityByItemItem[indexOfItem_i, indexOfNeighbor] != SparseMatrix.Zero
+                                if (strongSimilarityIndicators.Contains(new Tuple<int, int>(indexOfItem_i, indexOfNeighbor))
                                     &&indexOfNeighbor!= indexOfItem_i)
                                 {
                                     neighborsOfItem_i.Add(indexOfNeighbor);
@@ -269,7 +266,8 @@ namespace RecSys.Ordinal
                     }
 
                     // Eq. 20
-                    double regularizedSumOfLogLL = sumOfLogLL - regularization * featureWeightByItemItem.SquaredSum();
+                    double regularizedSumOfLogLL = sumOfLogLL - regularization 
+                        * featureWeightByItemItem.Sum(x => x.Value * x.Value);// featureWeightByItemItem.SquaredSum();
                     likelihood_curr = regularizedSumOfLogLL;
                     Utils.PrintEpoch("Epoch", epoch, maxEpoch, "Reg sum of log LL", regularizedSumOfLogLL.ToString("0.000"));
                 }
@@ -320,7 +318,7 @@ namespace RecSys.Ordinal
                     // Remove weak neighbors
                     foreach (int indexOfNeighbor in itemsOfUser)
                     {
-                        if (similarityByItemItem[indexOfItem, indexOfNeighbor] != SparseMatrix.Zero
+                        if (strongSimilarityIndicators.Contains(new Tuple<int, int>(indexOfItem, indexOfNeighbor))
                             && indexOfNeighbor!= indexOfItem)
                         {
                             neighborsOfItem.Add(indexOfNeighbor);
@@ -379,7 +377,7 @@ namespace RecSys.Ordinal
 
                 //double strength = similarityByItemItem[indexOfItem_i, indexOfNeighbor];
 
-                double weight = featureWeightByItemItem[indexOfItem_i, indexOfNeighbor];
+                double weight = featureWeightByItemItem[new Tuple<int,int>( indexOfItem_i, indexOfNeighbor)];
 
                 // We should not have 0 weight for two reasons:
                 // zero weight means it never get initialized, which means there is 

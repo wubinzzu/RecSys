@@ -24,7 +24,7 @@ namespace RecSys.Numerical
         /// <param name="R_unknown"></param>
         /// <param name="K"></param>
         /// <returns></returns>
-        public static RatingMatrix PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown, Matrix<double> userSimilarities, int K)
+        public static RatingMatrix PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown, SimilarityData neighborsByUser, int K)
         {
             // Debug
             Debug.Assert(R_train.UserCount == R_unknown.UserCount);
@@ -50,7 +50,8 @@ namespace RecSys.Numerical
 
                 Utils.PrintEpoch("Predicting user/total", indexOfUser, R_train.UserCount);
 
-                Dictionary<int, double> topKNeighbors = KNNCore.GetTopKNeighborsByUser(userSimilarities, indexOfUser, K);
+                var topKNeighbors = neighborsByUser[indexOfUser];
+                //Dictionary<int, double> topKNeighbors = KNNCore.GetTopKNeighborsByUser(userSimilarities, indexOfUser, K);
 
                 double meanOfUser = meanByUser[indexOfUser];
 

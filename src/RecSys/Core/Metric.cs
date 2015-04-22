@@ -5,6 +5,7 @@ using MathNet.Numerics.Statistics;
 using RecSys.Numerical;
 using RecSys.Ordinal;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
@@ -16,26 +17,41 @@ namespace RecSys.Core
     public static class Metric
     {
         #region Public interfaces to compute similarities of matrix/preference relations
-        public static Matrix<double> GetPearsonOfRows(RatingMatrix R)
+        public static void GetPearsonOfRows(RatingMatrix R, int maxCountOfNeighbors,
+            double strongSimilarityThreshold, out SimilarityData neighborsByObject,
+            out HashSet<Tuple<int, int>> strongSimilarityIndicators)
         {
-            return ComputeSimilarities(R.Matrix, SimilarityMetric.PearsonRating);
+            ComputeSimilarities(R.Matrix, SimilarityMetric.PearsonRating, maxCountOfNeighbors,
+                strongSimilarityThreshold, out neighborsByObject, out strongSimilarityIndicators);
         }
-        public static Matrix<double> GetCosineOfRows(RatingMatrix R)
+        public static void GetCosineOfRows(RatingMatrix R, int maxCountOfNeighbors, 
+            double strongSimilarityThreshold, out SimilarityData neighborsByObject)
         {
-            return ComputeSimilarities(R.Matrix, SimilarityMetric.CosineRating);
+            HashSet<Tuple<int, int>> foo;
+            ComputeSimilarities(R.Matrix, SimilarityMetric.CosineRating, maxCountOfNeighbors,
+                strongSimilarityThreshold, out neighborsByObject, out foo);
         }
-        public static Matrix<double> GetPearsonOfColumns(RatingMatrix R)
+        public static void GetPearsonOfColumns(RatingMatrix R, int maxCountOfNeighbors,
+            double strongSimilarityThreshold, out SimilarityData neighborsByObject,
+            out HashSet<Tuple<int, int>> strongSimilarityIndicators)
         {
-            return ComputeSimilarities(R.Matrix.Transpose(), SimilarityMetric.PearsonRating);
+            ComputeSimilarities(R.Matrix.Transpose(), SimilarityMetric.PearsonRating, maxCountOfNeighbors,
+                strongSimilarityThreshold, out neighborsByObject, out strongSimilarityIndicators);
         }
-        public static Matrix<double> GetCosineOfColumns(RatingMatrix R)
+        public static void GetCosineOfColumns(RatingMatrix R, int maxCountOfNeighbors,
+            double strongSimilarityThreshold, out SimilarityData neighborsByObject,
+            out HashSet<Tuple<int, int>> strongSimilarityIndicators)
         {
             // Just rotate the matrix
-            return ComputeSimilarities(R.Matrix.Transpose(), SimilarityMetric.CosineRating);
+            ComputeSimilarities(R.Matrix.Transpose(), SimilarityMetric.CosineRating, maxCountOfNeighbors,
+                strongSimilarityThreshold, out neighborsByObject, out strongSimilarityIndicators);
         }
-        public static Matrix<double> GetCosineOfPrefRelations(PrefRelations PR)
+        public static void GetCosineOfPrefRelations(PrefRelations PR, int maxCountOfNeighbors,
+                        double strongSimilarityThreshold, out SimilarityData neighborsByObject)
         {
-            return ComputeSimilarities(PR, SimilarityMetric.CosinePrefRelations);
+            HashSet<Tuple<int, int>> foo;
+            ComputeSimilarities(PR, SimilarityMetric.CosinePrefRelations, maxCountOfNeighbors,
+    strongSimilarityThreshold, out neighborsByObject, out foo);
         }
 
         #endregion
@@ -57,7 +73,48 @@ namespace RecSys.Core
             // For all metrics we use (Pearson and Cosine) the max similarity is 1.0
             Matrix<double> similarities = Matrix.Build.DenseDiagonal(dimension, 1);
 
+            /*
             // Compute similarity for the lower triangular
+            Object lockMe = new Object();
+            int count = 0;
+            Parallel.ForEach(R.EnumerateRowsIndexed(), row_a =>
+            {
+                int indexOfRow_a = row_a.Item1;
+                Vector<double> valuesOfRow_a = row_a.Item2;
+                Vector<double> similaritiesOfRow_a = Vector.Build.Dense(dimension);
+
+                foreach (var row_b in R.EnumerateRowsIndexed(indexOfRow_a+1,R.RowCount-indexOfRow_a-1))
+                {
+                    int indexOfRow_b = row_b.Item1;
+                    Vector<double> valuesOfRow_b = row_b.Item2;
+
+                    // Compute only the upper triangular
+                    //if (indexOfRow_a > indexOfRow_b)
+                    //{
+                        switch (similarityMetric)
+                        {
+                            case Metric.SimilarityMetric.CosineRating:
+                                similaritiesOfRow_a[indexOfRow_b] = CosineR(valuesOfRow_a, valuesOfRow_b);
+                                break;
+                            case Metric.SimilarityMetric.PearsonRating:
+                                similaritiesOfRow_a[indexOfRow_b] = PearsonR(valuesOfRow_a, valuesOfRow_b);
+                                break;
+                        }
+                    //}
+                }
+
+                lock (lockMe)
+                {
+                    similarities.SetRow(indexOfRow_a, similaritiesOfRow_a);
+                    count++;
+                    Utils.PrintEpoch("Progress current/total", count, R.RowCount);
+                }
+            });
+            */
+
+            // Compute similarity for the lower triangular
+            #region Old implementation
+            
             Object lockMe = new Object();
             Parallel.For(0, dimension, i =>
             {
@@ -71,14 +128,14 @@ namespace RecSys.Core
                         switch (similarityMetric)
                         {
                             case Metric.SimilarityMetric.CosineRating:
-                                double cosine = Metric.CosineR(R, i, j);
+                                double cosine = Metric.CosineR(R.Row(i), R.Row(j));
                                 lock (lockMe)
                                 {
                                     similarities[i, j] = cosine;
                                 }
                                 break;
                             case Metric.SimilarityMetric.PearsonRating:
-                                double pearson = Metric.PearsonR(R, i, j);
+                                double pearson = Metric.PearsonR(R.Row(i), R.Row(j));
                                 lock (lockMe)
                                 {
                                     similarities[i, j] = pearson;
@@ -88,13 +145,86 @@ namespace RecSys.Core
                     }
                 }
             });
+            #endregion
 
-            // Copy similarity values from lower triangular to upper triangular
-            similarities = similarities + similarities.Transpose() - Matrix.Build.DenseIdentity(similarities.RowCount);
+            // Copy similarity values from upper triangular to lower triangular
+            similarities = similarities + similarities.Transpose();
 
             return similarities;
         }
         #endregion
+
+        #region Compute topK neighbors of each row
+        private static void ComputeSimilarities(Matrix<double> R, 
+            Metric.SimilarityMetric similarityMetric, int maxCountOfNeighbors,
+            double minSimilarityThreshold,  out SimilarityData neighborsByObject,
+            out HashSet<Tuple<int, int>> strongSimilarityIndicators)
+        {
+            int dimension = R.RowCount;
+            List<Vector<double>> rows = new List<Vector<double>>(R.EnumerateRows());
+
+            // I assume that the rows are enumerated from first to last
+            Debug.Assert(rows[0].Sum() == R.Row(0).Sum());
+            Debug.Assert(rows[rows.Count - 1].Sum() == R.Row(rows.Count - 1).Sum());
+
+            List<Tuple<int, int>> strongSimilarityIndicators_out = new List<Tuple<int, int>>();
+
+            SimilarityData neighborsByObject_out = new SimilarityData(maxCountOfNeighbors);
+
+            Object lockMe = new Object();
+            Parallel.For(0, dimension, indexOfRow =>
+            {
+                Utils.PrintEpoch("Progress current/total", indexOfRow, dimension);
+                Dictionary<Tuple<int, int>,double> similarityCache = new Dictionary<Tuple<int, int>,double>();
+                List<Tuple<int, int>> strongSimilarityIndocatorCache = new List<Tuple<int, int>>();
+
+                for (int indexOfNeighbor = 0; indexOfNeighbor < dimension; indexOfNeighbor++)
+                {
+                    if (indexOfRow == indexOfNeighbor) { continue; } // Skip self similarity
+
+                    else if (indexOfRow > indexOfNeighbor)
+                    {
+                        switch (similarityMetric)
+                        {
+                            case Metric.SimilarityMetric.CosineRating:
+                                double cosine = Metric.CosineR(rows[indexOfRow],rows[indexOfNeighbor]);
+                                    if(cosine >  minSimilarityThreshold)
+                                    {
+                                        strongSimilarityIndocatorCache.Add(new Tuple<int, int>(indexOfRow, indexOfNeighbor));
+                                    }
+                                    similarityCache[new Tuple<int, int>(indexOfRow, indexOfNeighbor)] = cosine;
+
+                                break;
+                            case Metric.SimilarityMetric.PearsonRating:
+                                double pearson = Metric.PearsonR(rows[indexOfRow], rows[indexOfNeighbor]);
+                                    if (pearson> minSimilarityThreshold)
+                                    {
+                                        strongSimilarityIndocatorCache.Add(new Tuple<int, int>(indexOfRow, indexOfNeighbor));
+                                    }
+                                    similarityCache[new Tuple<int, int>(indexOfRow, indexOfNeighbor)] = pearson;
+
+                                break;
+                        }
+                    }
+                }
+
+                lock (lockMe)
+                {
+                    foreach(var entry in similarityCache)
+                    {
+                        neighborsByObject_out.AddSimilarityData(entry.Key.Item1, entry.Key.Item2, entry.Value);
+                        neighborsByObject_out.AddSimilarityData(entry.Key.Item2, entry.Key.Item1, entry.Value);
+                    }
+                    strongSimilarityIndicators_out.AddRange(strongSimilarityIndocatorCache);
+                }
+            });
+
+            neighborsByObject = neighborsByObject_out;
+            neighborsByObject.SortAndRemoveNeighbors();
+            strongSimilarityIndicators = new HashSet<Tuple<int,int>>(strongSimilarityIndicators_out);
+        }
+        #endregion
+
 
         #region All preference relations based metrics share the same computation flow in this function
         /// <summary>
@@ -103,12 +233,14 @@ namespace RecSys.Core
         /// <param name="PR"></param>
         /// <param name="similarityMetric"></param>
         /// <returns></returns>
-        private static Matrix<double> ComputeSimilarities(PrefRelations PR, SimilarityMetric similarityMetric)
+        private static void ComputeSimilarities(PrefRelations PR,
+            Metric.SimilarityMetric similarityMetric, int maxCountOfNeighbors,
+                        double minSimilarityThreshold, out SimilarityData neighborsByObject,
+            out HashSet<Tuple<int, int>> strongSimilarityIndicators)
         {
             int dimension = PR.UserCount;
-
-            // For all metrics we use (Pearson and Cosine) the max similarity is 1.0
-            Matrix<double> similarities = Matrix.Build.DenseDiagonal(dimension, 1);
+            HashSet<Tuple<int, int>> strongSimilarityIndicators_out = new HashSet<Tuple<int, int>>();
+            SimilarityData neighborsByObject_out = new SimilarityData(maxCountOfNeighbors);
 
             // Compute similarity for the lower triangular
             Object lockMe = new Object();
@@ -118,7 +250,8 @@ namespace RecSys.Core
 
                 for (int j = 0; j < dimension; j++)
                 {
-                    if (i == j) { continue; }// Skip the diagonal
+                    if (i == j) { continue; } // Skip self similarity
+
                     else if (i > j)
                     {
                         switch (similarityMetric)
@@ -127,7 +260,12 @@ namespace RecSys.Core
                                 double cosinePR = Metric.cosinePR(PR, i, j);
                                 lock (lockMe)
                                 {
-                                    similarities[i, j] = cosinePR;
+                                    if (cosinePR > minSimilarityThreshold)
+                                    {
+                                        strongSimilarityIndicators_out.Add(new Tuple<int, int>(i, j));
+                                    }
+                                    neighborsByObject_out.AddSimilarityData(i, j, cosinePR);
+                                    neighborsByObject_out.AddSimilarityData(j, i, cosinePR);
                                 }
                                 break;
                             // More metrics to be added here.
@@ -135,21 +273,16 @@ namespace RecSys.Core
                     }
                 }
             });
-            // Copy similarity values from lower triangular to upper triangular
-            similarities = similarities + similarities.Transpose() - Matrix.Build.DenseIdentity(similarities.RowCount);
 
-            Debug.Assert(similarities[0, 0] == 1, "The similarities[0,0] should be 1 for Pearson correlation.");
-
-            return similarities;
+            neighborsByObject = neighborsByObject_out;
+            strongSimilarityIndicators = strongSimilarityIndicators_out;
         }
         #endregion
 
         #region Rating Pearson
-        private static double PearsonR(Matrix<double> R, int a, int b)
+        private static double PearsonR(Vector<double> Vector_a, Vector<double> Vector_b)
         {
-            // Why it is not Distance-1????!!
-            double correlation = Correlation.Pearson(R.Row(a), R.Row(b));//Distance.Pearson(R.Row(a), R.Row(b));
-            //double correlation = Distance.Pearson(R.Row(a), R.Row(b));
+            double correlation = Correlation.Pearson(Vector_a,Vector_b);
             if (double.IsNaN(correlation))
             {
                 // This means one of the row has 0 standard divation,
@@ -158,16 +291,14 @@ namespace RecSys.Core
                 correlation = 0;
             }
             return correlation;
-            //return 1 - Distance.Pearson(R.Matrix.Row(a), R.Matrix.Row(b));
         }
         #endregion
 
         #region Rating Cosine
-        private static double CosineR(Matrix<double> R, int a, int b)
+        private static double CosineR(Vector<double> Vector_a, Vector<double> Vector_b)
         {
-            // TODO: I'm wondering when we compute similarity,
-            // should we count zeros in the vectors or not?
-            return Distance.Cosine(R.Row(a).ToArray(), R.Row(b).ToArray());
+            return Vector_a.DotProduct(Vector_b) / (Vector_a.L2Norm() * Vector_b.L2Norm());
+            //return Distance.Cosine(R.Row(a).ToArray(), R.Row(b).ToArray());
         }
         #endregion
 

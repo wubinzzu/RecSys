@@ -6,12 +6,14 @@ using RecSys.Numerical;
 using RecSys.Ordinal;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 
 namespace RecSys.ExperimentOfCIKM2015
 {
-    class Experiment
+    [Serializable]
+    public class Experiment
     {
         /************************************************************
          *   R_train     => Rating Matrix train set
@@ -28,29 +30,34 @@ namespace RecSys.ExperimentOfCIKM2015
         ************************************************************/
 
         #region Experiment settings
-        public RatingMatrix R_train { get; set; }
-        public RatingMatrix R_test { get; set; }
-        public RatingMatrix R_unknown { get; set; }
-        public PrefRelations PR_train { get; set; }
-        public PrefRelations PR_test { get; set; }
-        public Matrix<double> UserSimilaritiesOfRating { get; set; }
-        public Matrix<double> UserSimilaritiesOfPref { get; set; }
-        public Matrix<double> ItemSimilaritiesOfRating { get; set; }
-        public Matrix<double> ItemSimilaritiesOfPref { get; set; }
-        public bool ReadyForNumerical { get; set; }
-        public bool ReadyForOrdinal { get; set; }
-        public string DataSetFile { get; set; }
-        public int MinCountOfRatings { get; set; }
-        public int CountOfRatingsForTrain { get; set; }
-        public bool ShuffleData { get; set; }
-        public int Seed { get; set; }
-        public double RelevantItemCriteria { get; set; }
-        public Dictionary<int, List<int>> RelevantItemsByUser { get; set; }
+        public RatingMatrix R_train;
+        public RatingMatrix R_test;
+        public RatingMatrix R_unknown;
+        public PrefRelations PR_train;
+        public PrefRelations PR_test;
+        public SimilarityData UserSimilaritiesOfRating;
+        public SimilarityData UserSimilaritiesOfPref;
+        public SimilarityData ItemSimilaritiesOfRating;
+        public SimilarityData ItemSimilaritiesOfPref;
+        public HashSet<Tuple<int, int>> StrongSimilarityIndicatorsByItemRating;
+        public HashSet<Tuple<int, int>> StrongSimilarityIndicatorsByItemPref;
+        public bool ReadyForNumerical;
+        public bool ReadyForOrdinal;
+        public string DataSetFile;
+        public int MinCountOfRatings;
+        public int CountOfRatingsForTrain;
+        public bool ShuffleData;
+        public int Seed;
+        public double RelevantItemCriteria;
+        public int MaxCountOfNeighbors;
+        public double StrongSimilarityThreshold;
+        public Dictionary<int, List<int>> RelevantItemsByUser;
         #endregion
 
         #region Constructor
         public Experiment(string dataSetFile, int minCountOfRatings,
-            int countOfRatingsForTrain, bool shuffleData, int seed, double relevantItemCriteria)
+            int countOfRatingsForTrain, bool shuffleData, int seed, double relevantItemCriteria,
+            int maxCountOfNeighbors, double strongSimilarityThreshold)
         {
             DataSetFile = dataSetFile;
             MinCountOfRatings = minCountOfRatings;
@@ -58,26 +65,42 @@ namespace RecSys.ExperimentOfCIKM2015
             ShuffleData = shuffleData;
             Seed = seed;
             RelevantItemCriteria = relevantItemCriteria;
+            MaxCountOfNeighbors = maxCountOfNeighbors;
             ReadyForNumerical = false;
             ReadyForOrdinal = false;
+            StrongSimilarityThreshold = strongSimilarityThreshold;
+        }
+        public Experiment() { }
+        #endregion
+
+        #region GetDataFileName
+        // When save to data to file, the settings will be encoded into file name
+        private string GetDataFileName()
+        {
+            string output = "";
+            output+= DataSetFile;
+            output+= "_S" + Seed;
+            output+= "_MCR" + MinCountOfRatings;
+            output += "_CRT" + CountOfRatingsForTrain;
+            output += "_MCN" + MaxCountOfNeighbors;
+            output += "_SST" + StrongSimilarityThreshold.ToString("0.00");
+            output +=".bin";
+
+            return output;
         }
         #endregion
 
         #region Get ready for numerical methods
-        public string GetReadyForNumerical(bool saveLoadedData = false,
-            string userSimilaritiesOfRatingFile = "", string itemSimilaritiesOfRatingFile = "",
-            bool loadSavedData = false)
+        public string GetReadyForNumerical(bool saveLoadedData = true)
         {
+            if (ReadyForNumerical) { return "Is ready."; }
+
             StringBuilder log = new StringBuilder();
             Utils.StartTimer();
 
             log.Append(Utils.PrintHeading("Create R_train/R_test sets from " + DataSetFile));
-            RatingMatrix R_train_out;
-            RatingMatrix R_test_out;
-            Utils.LoadMovieLensSplitByCount(Config.Ratings.DataSetFile, out R_train_out,
-                out R_test_out, MinCountOfRatings, CountOfRatingsForTrain, ShuffleData, Seed);
-            R_train = R_train_out;
-            R_test = R_test_out;
+            Utils.LoadMovieLensSplitByCount(DataSetFile, out R_train,
+                out R_test, MinCountOfRatings, CountOfRatingsForTrain, ShuffleData, Seed);
 
             Console.WriteLine(R_train.DatasetBrief("Train set"));
             Console.WriteLine(R_test.DatasetBrief("Test set"));
@@ -93,40 +116,46 @@ namespace RecSys.ExperimentOfCIKM2015
             log.Append(Utils.StopTimer());
 
             #region Prepare similarity data
-            if (loadSavedData)
+            if (File.Exists("USR_" + GetDataFileName())
+                && File.Exists("ISR_" + GetDataFileName())
+                && File.Exists("SSIIR_" + GetDataFileName()))
             {
                 Utils.StartTimer();
-                Utils.PrintHeading("Load user-user similarities from R_train");
-                UserSimilaritiesOfRating = Utils.ReadDenseMatrix(userSimilaritiesOfRatingFile);
-                Utils.PrintValue("Sum of similarities", UserSimilaritiesOfRating.RowSums().Sum().ToString("0.0000"));
-                Utils.PrintValue("Abs sum of similarities", UserSimilaritiesOfRating.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.PrintHeading("Load user-user similarities (rating based)");
+                UserSimilaritiesOfRating = Utils.LoadSimilarityData( "UserRating_" + GetDataFileName());
                 Utils.StopTimer();
 
                 Utils.StartTimer();
-                Utils.PrintHeading("Load item-item similarities from R_train");
-                ItemSimilaritiesOfRating = Utils.ReadDenseMatrix(itemSimilaritiesOfRatingFile);
-                Utils.PrintValue("Sum of similarities", ItemSimilaritiesOfRating.RowSums().Sum().ToString("0.0000"));
-                Utils.PrintValue("Abs sum of similarities", ItemSimilaritiesOfRating.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.PrintHeading("Load item-item similarities (rating based)");
+                ItemSimilaritiesOfRating = Utils.LoadSimilarityData("ItemRating_" + GetDataFileName());
+                Utils.StopTimer();
+
+                Utils.StartTimer();
+                Utils.PrintHeading("Load item-item strong similarity indicators (rating based)");
+                StrongSimilarityIndicatorsByItemRating = Utils.LoadHashSet("SSIIR_" + GetDataFileName());
                 Utils.StopTimer();
             }
             else
             {
                 Utils.StartTimer();
-                Utils.PrintHeading("Compute user-user similarities from R_train");
-                UserSimilaritiesOfRating = Metric.GetPearsonOfRows(R_train);
-                if (saveLoadedData) { Utils.WriteMatrix(UserSimilaritiesOfRating, userSimilaritiesOfRatingFile); }
-                Utils.PrintValue("Sum of similarities", UserSimilaritiesOfRating.RowSums().Sum().ToString("0.0000"));
-                Utils.PrintValue("Abs sum of similarities", UserSimilaritiesOfRating.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.PrintHeading("Compute user-user similarities (rating based)");
+                Metric.GetCosineOfRows(R_train, MaxCountOfNeighbors,StrongSimilarityThreshold,
+                    out UserSimilaritiesOfRating);
+                if (saveLoadedData) 
+                {
+                    Utils.SaveSimilarityData(UserSimilaritiesOfRating, "USR_" + GetDataFileName());
+                }
                 Utils.StopTimer();
 
                 Utils.StartTimer();
-                Utils.PrintHeading("Compute item-item similarities from R_train");
-                ItemSimilaritiesOfRating = Metric.GetPearsonOfColumns(R_train);
-                if (saveLoadedData) { Utils.WriteMatrix(ItemSimilaritiesOfRating, itemSimilaritiesOfRatingFile); }
-                Vector<double> rowSums = ItemSimilaritiesOfRating.RowSums();
-                double sum = checked(rowSums.Sum());
-                Utils.PrintValue("Sum of similarities", ItemSimilaritiesOfRating.RowSums().Sum().ToString("0.0000"));
-                Utils.PrintValue("Abs sum of similarities", ItemSimilaritiesOfRating.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.PrintHeading("Compute item-item similarities (rating based)");
+                Metric.GetCosineOfColumns(R_train, MaxCountOfNeighbors, StrongSimilarityThreshold, 
+                    out ItemSimilaritiesOfRating, out StrongSimilarityIndicatorsByItemRating);
+                if (saveLoadedData)
+                {
+                    Utils.SaveSimilarityData(ItemSimilaritiesOfRating, "ISR_" + GetDataFileName());
+                    Utils.SaveHashSet(StrongSimilarityIndicatorsByItemRating, "SSIIR_" + GetDataFileName());
+                }
                 Utils.StopTimer();
             }
             #endregion
@@ -138,10 +167,11 @@ namespace RecSys.ExperimentOfCIKM2015
         #endregion
 
         #region Get ready for ordinal methods
-        private string GetReadyForOrdinal(bool saveLoadedData = false,
-            string userSimilaritiesOfPrefFile = "", string itemSimilaritiesOfPrefFile = "",
-            bool loadSavedData = false)
+        public string GetReadyForOrdinal(bool saveLoadedData = true)
         {
+            if (!ReadyForNumerical) { GetReadyForNumerical(); }
+            if (ReadyForOrdinal) { return "Is ready."; }
+
             StringBuilder log = new StringBuilder();
             Utils.StartTimer();
             log.Append(Utils.PrintHeading("Prepare preferecen relation data"));
@@ -157,33 +187,47 @@ namespace RecSys.ExperimentOfCIKM2015
             log.Append(Utils.StopTimer());
 
             #region Prepare similarity data
-            if (Config.LoadSavedData)
+            if (File.Exists("USP_" + GetDataFileName())
+                && File.Exists("ISP_" + GetDataFileName())
+                && File.Exists("SSIIP_" + GetDataFileName()))
             {
 
                 Utils.StartTimer();
-                Utils.PrintHeading("Load user-user similarities from PR_train");
-                UserSimilaritiesOfPref = Utils.ReadDenseMatrix(userSimilaritiesOfPrefFile);
-                Utils.PrintValue("Sum of similarities", UserSimilaritiesOfPref.RowSums().Sum().ToString("0.0000"));
-                Utils.PrintValue("Abs sum of similarities", UserSimilaritiesOfPref.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.PrintHeading("Load user-user similarities (Pref based)");
+                UserSimilaritiesOfPref = Utils.LoadSimilarityData("USP_" + GetDataFileName());
+                ItemSimilaritiesOfPref = Utils.LoadSimilarityData("ISP_" + GetDataFileName());
+                StrongSimilarityIndicatorsByItemPref = Utils.LoadHashSet("SSIIP_" + GetDataFileName());
                 Utils.StopTimer();
-
-                // TODO: add PR based item-item similarities
-
             }
             else
             {
                 Utils.StartTimer();
-                Utils.PrintHeading("Compute user-user similarities from PR_train");
-                UserSimilaritiesOfPref = Metric.GetCosineOfPrefRelations(PR_train);
-                if (saveLoadedData) { Utils.WriteMatrix(UserSimilaritiesOfPref, userSimilaritiesOfPrefFile); }
-                Utils.PrintValue("Sum of similarities", UserSimilaritiesOfPref.RowSums().Sum().ToString("0.0000"));
-                Utils.PrintValue("Abs sum of similarities", UserSimilaritiesOfPref.RowAbsoluteSums().Sum().ToString("0.0000"));
+                Utils.PrintHeading("Compute user-user similarities (Pref based)");
+                Metric.GetCosineOfPrefRelations(PR_train, MaxCountOfNeighbors, 
+                    StrongSimilarityThreshold, out UserSimilaritiesOfPref);
                 Utils.StopTimer();
 
-                // TODO: add PR based item-item similarities
+                // For the moment, we use user-wise preferences to compute
+                // item-item similarities, it is not the same as user-user pref similarities
+                Utils.StartTimer();
+                Utils.PrintHeading("Compute item-item similarities (Pref based)");
+                RatingMatrix PR_userwise_preferences = new RatingMatrix(PR_train.GetPositionMatrix());
+                Metric.GetCosineOfColumns(PR_userwise_preferences, MaxCountOfNeighbors, StrongSimilarityThreshold,
+                    out ItemSimilaritiesOfPref, out StrongSimilarityIndicatorsByItemPref);
+                Utils.StopTimer();
+
+                if (saveLoadedData)
+                {
+                    Utils.SaveSimilarityData(UserSimilaritiesOfPref, "USP_" + GetDataFileName());
+                    Utils.SaveSimilarityData(ItemSimilaritiesOfPref, "ISP_" + GetDataFileName());
+                    Utils.SaveHashSet(StrongSimilarityIndicatorsByItemPref, "SSIIP_" + GetDataFileName());
+                }
+                Utils.StopTimer();
 
             }
             #endregion
+
+            
 
             ReadyForOrdinal = true;
 
@@ -192,11 +236,13 @@ namespace RecSys.ExperimentOfCIKM2015
         #endregion
 
         #region Get ready for all methods
-        public string GetReady()
+        public string GetReadyAll()
         {
             StringBuilder log = new StringBuilder();
-            log.Append(GetReadyForNumerical());
-            log.Append(GetReadyForOrdinal());
+            if(!ReadyForNumerical)
+                log.Append(GetReadyForNumerical());
+            if(!ReadyForOrdinal)
+                log.Append(GetReadyForOrdinal());
 
             return log.ToString();
         }
@@ -246,11 +292,11 @@ namespace RecSys.ExperimentOfCIKM2015
                 int indexOfItem = element.Item2;
                 R_predicted[indexOfUser, indexOfItem] = meanByItem[indexOfItem];
             }
-            var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
+            var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
             log.Append(Utils.StopTimer());
 
             // TopN Evaluation
-            for (int n = 1; n <= Config.TopN; n++)
+            for (int n = 1; n <= topN; n++)
             {
                 log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
             }
@@ -283,8 +329,8 @@ namespace RecSys.ExperimentOfCIKM2015
             // TopN Evaluation
             if (topN != 0)
             {
-                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
-                for (int n = 1; n <= Config.TopN; n++)
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
+                for (int n = 1; n <= topN; n++)
                 {
                     log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
                 }
@@ -313,8 +359,8 @@ namespace RecSys.ExperimentOfCIKM2015
             // TopN Evaluation
             if (topN != 0)
             {
-                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
-                for (int n = 1; n <= Config.TopN; n++)
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
+                for (int n = 1; n <= topN; n++)
                 {
                     Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
                 }
@@ -340,7 +386,7 @@ namespace RecSys.ExperimentOfCIKM2015
 
             // Evaluation
             var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
-            for (int n = 1; n <= Config.TopN; n++)
+            for (int n = 1; n <= topN; n++)
             {
                 Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
             }
@@ -363,7 +409,7 @@ namespace RecSys.ExperimentOfCIKM2015
 
             // TopN Evaluation
             var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
-            for (int n = 1; n <= Config.TopN; n++)
+            for (int n = 1; n <= topN; n++)
             {
                 Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
             }
@@ -391,21 +437,20 @@ namespace RecSys.ExperimentOfCIKM2015
             R_train_positions.Quantization(quantizer[0], quantizer[quantizer.Count - 1] - quantizer[0], quantizer);
 
             ORF orf = new ORF();
-            orf.PredictRatings(
-                R_train_positions, R_unknown, ItemSimilaritiesOfPref, OMFDistributionByUserItem,
-                regularization, learnRate, minSimilarity, maxEpoch, quantizer.Count,
+            orf.PredictRatings( R_train_positions, R_unknown, StrongSimilarityIndicatorsByItemPref, 
+                OMFDistributionByUserItem, regularization, learnRate, minSimilarity, maxEpoch, quantizer.Count,
                 out R_predicted_expectations, out R_predicted_mostlikely);
             log.Append(Utils.StopTimer());
 
             // Evaluation
-            var topNItemsByUser_expectations = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_expectations, Config.TopN);
-            var topNItemsByUser_mostlikely = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_mostlikely, Config.TopN);
-            for (int n = 1; n <= Config.TopN; n++)
+            var topNItemsByUser_expectations = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_expectations, topN);
+            var topNItemsByUser_mostlikely = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_mostlikely, topN);
+            for (int n = 1; n <= topN; n++)
             {
                 log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser,
                     topNItemsByUser_expectations, n).ToString("0.0000")));
             }
-            for (int n = 1; n <= Config.TopN; n++)
+            for (int n = 1; n <= topN; n++)
             {
                 log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser,
                     topNItemsByUser_mostlikely, n).ToString("0.0000")));
@@ -429,10 +474,9 @@ namespace RecSys.ExperimentOfCIKM2015
             RatingMatrix R_predicted_expectations;
             RatingMatrix R_predicted_mostlikely;
             ORF orf = new ORF();
-            orf.PredictRatings(
-                R_train, R_unknown, ItemSimilaritiesOfRating, OMFDistributionByUserItem,
-                regularization, learnRate, minSimilarity, maxEpoch, quantizer.Count,
-                out R_predicted_expectations, out R_predicted_mostlikely);
+            orf.PredictRatings( R_train, R_unknown, StrongSimilarityIndicatorsByItemRating, 
+                OMFDistributionByUserItem, regularization, learnRate, minSimilarity, maxEpoch, 
+                quantizer.Count, out R_predicted_expectations, out R_predicted_mostlikely);
             log.Append(Utils.StopTimer());
 
             // Numerical Evaluation
@@ -444,11 +488,11 @@ namespace RecSys.ExperimentOfCIKM2015
             {
                 var topNItemsByUser_expectations = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_expectations, topN);
                 var topNItemsByUser_mostlikely = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_mostlikely, topN);
-                for (int n = 1; n <= Config.TopN; n++)
+                for (int n = 1; n <= topN; n++)
                 {
                     log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser_expectations, n).ToString("0.0000")));
                 }
-                for (int n = 1; n <= Config.TopN; n++)
+                for (int n = 1; n <= topN; n++)
                 {
                     log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser_mostlikely, n).ToString("0.0000")));
                 }
@@ -507,8 +551,8 @@ namespace RecSys.ExperimentOfCIKM2015
             log.Append(Utils.StopTimer());
 
             // TopN Evaluation
-            var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
-            for (int n = 1; n <= Config.TopN; n++)
+            var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
+            for (int n = 1; n <= topN; n++)
             {
                 log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(relevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
             }
@@ -537,8 +581,8 @@ namespace RecSys.ExperimentOfCIKM2015
             R_all.MergeNonOverlap(R_unknown);
             R_all.MergeNonOverlap(R_train.IndexesOfNonZeroElements());
             Utils.StartTimer();
-            RatingMatrix R_predictedByNMF = NMF.PredictRatings(R_train, R_all, Config.NMF.MaxEpoch,
-                Config.NMF.LearnRate, Config.NMF.Regularization, Config.NMF.K);
+            RatingMatrix R_predictedByNMF = NMF.PredictRatings(R_train, R_all, maxEpoch,
+                learnRate, regularization, factorCount);
             log.Append(Utils.StopTimer());
 
             // OMF Prediction
@@ -556,8 +600,8 @@ namespace RecSys.ExperimentOfCIKM2015
             // TopN Evaluation
             if (topN != 0)
             {
-                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, Config.TopN);
-                for (int n = 1; n <= Config.TopN; n++)
+                var topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R_predicted, topN);
+                for (int n = 1; n <= topN; n++)
                 {
                     log.Append(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
                 }
