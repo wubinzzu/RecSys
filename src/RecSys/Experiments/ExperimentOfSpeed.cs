@@ -105,6 +105,7 @@ namespace RecSys.Experiments
                 for (int j = 0; j < 1000; j++)
                 {
                     double foo = myDict[new Tuple<int, int>(i, j)];
+                    myDict[new Tuple<int, int>(i, j)] = foo+1;
                 }
             }
             Utils.StopTimer();
@@ -115,6 +116,7 @@ namespace RecSys.Experiments
                 for (int j = 0; j < 1000; j++)
                 {
                     double foo = myDict2[i][j];
+                    myDict2[i][j] = foo + 1;
                 }
             }
             Utils.StopTimer();
@@ -125,6 +127,7 @@ namespace RecSys.Experiments
                 for (int j = 0; j < 1000; j++)
                 {
                     double foo = myMatrix[i, j];
+                    myMatrix[i, j] = foo + 1;
                 }
             }
             Utils.StopTimer();
@@ -135,6 +138,7 @@ namespace RecSys.Experiments
                 for (int j = 0; j < 1000; j++)
                 {
                     double foo = myList[i][j];
+                    myList[i][j] = foo + 1;
                 }
             }
             Utils.StopTimer();
@@ -145,6 +149,7 @@ namespace RecSys.Experiments
                 for (int j = 0; j < 1000; j++)
                 {
                     double foo = my2DList[i][j];
+                    my2DList[i][j] = foo + 1;
                 }
             }
             Utils.StopTimer();

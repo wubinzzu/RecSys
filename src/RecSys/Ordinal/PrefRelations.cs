@@ -46,16 +46,9 @@ namespace RecSys.Ordinal
             get { return preferenceRelations.Keys.ToList(); }
         }
 
-        public int UserCount
-        {
-            get { return preferenceRelations.Count; }
-        }
+        public int UserCount  { get { return preferenceRelations.Count; } }
 
-        public int ItemCount
-        {
-            get;
-            set;
-        }
+        public int ItemCount {get; set;  }
         public Matrix<double> UserSimilarities
         {
             get
@@ -111,7 +104,7 @@ namespace RecSys.Ordinal
         #endregion
 
         #region CreateDiscrete
-        public static PrefRelations CreateDiscrete(RatingMatrix R)
+        public static PrefRelations CreateDiscrete(DataMatrix R)
         {
             int userCount = R.UserCount;
             int itemCount = R.ItemCount;
@@ -126,8 +119,8 @@ namespace RecSys.Ordinal
 
                 Utils.PrintEpoch("Converting user/total", userIndex, userCount);
 
-                // The diagonal refer to the i-i item pair
-                SparseMatrix userPreferences = new SparseMatrix(itemCount);
+                SparseMatrix userPreferences;
+                List<Tuple<int, int, double>> userPreferencensCache = new List<Tuple<int, int, double>>();
 
                 // The diagonal is left empty!
                 //SparseMatrix.OfMatrix(Matrix.Build.SparseDiagonal(itemCount, Config.Preferences.EquallyPreferred));
@@ -156,22 +149,26 @@ namespace RecSys.Ordinal
 
                         if (leftItemRating > rightItemRating)
                         {
-                            userPreferences[leftItemIndex, rightItemIndex] = Config.Preferences.Preferred;
+                            userPreferencensCache.Add(new Tuple<int, int, double>(
+                                leftItemIndex, rightItemIndex, Config.Preferences.Preferred));
                         }
                         else if (leftItemRating < rightItemRating)
                         {
-                            userPreferences[leftItemIndex, rightItemIndex] = Config.Preferences.LessPreferred;
+                            userPreferencensCache.Add(new Tuple<int, int, double>(
+                                leftItemIndex, rightItemIndex, Config.Preferences.LessPreferred));
                         }
                         else // i.e. leftItemRating==ratingRight
                         {
-                            userPreferences[leftItemIndex, rightItemIndex] = Config.Preferences.EquallyPreferred;
+                            userPreferencensCache.Add(new Tuple<int, int, double>(
+                                leftItemIndex, rightItemIndex, Config.Preferences.EquallyPreferred));
                         }
                     }
                 }
+                userPreferences = SparseMatrix.OfIndexed(itemCount, itemCount, userPreferencensCache);
 
                 // Because pr's upper triangular should be a mirror of the lower triangular
                 Debug.Assert((userPreferences.NonZerosCount).IsEven());
-                double debug1 = (Math.Pow(((SparseVector)R.GetRow(userIndex)).NonZerosCount, 2) 
+                double debug1 = (Math.Pow(((SparseVector)R.GetRow(userIndex)).NonZerosCount, 2)
                     - ((SparseVector)R.GetRow(userIndex)).NonZerosCount);
                 double debug2 = userPreferences.NonZerosCount;
                 Debug.Assert(debug1 == debug2);
@@ -185,14 +182,13 @@ namespace RecSys.Ordinal
             });
 
 
-
             return PR;
         }
         #endregion
 
         #region CreateScalar
         // TODO: Scalar preference relations based on Bradley-Terry model
-        public static PrefRelations CreateScalar(RatingMatrix R)
+        public static PrefRelations CreateScalar(DataMatrix R)
         {
             int userCount = R.UserCount;
             int itemCount = R.ItemCount;

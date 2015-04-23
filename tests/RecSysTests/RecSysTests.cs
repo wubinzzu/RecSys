@@ -16,7 +16,7 @@ namespace RecSysUnitTest
     public class RecSysTests
     {
         #region Data for testing
-        private static RatingMatrix GetSampleRatingMatrix()
+        private static DataMatrix GetSampleRatingMatrix()
         {
             /*
              * 5  3  0  1
@@ -25,7 +25,7 @@ namespace RecSysUnitTest
              * 1  0  0  4
              * 0  1  5  4
              */
-            RatingMatrix R = new RatingMatrix(new SparseMatrix(5, 4));
+            DataMatrix R = new DataMatrix(new SparseMatrix(5, 4));
             R[0, 0] = 5;
             R[0, 1] = 3;
             R[0, 3] = 1;
@@ -59,7 +59,7 @@ namespace RecSysUnitTest
                  * 1  0  0  4
                  * 0  1  5  4
                  */
-                RatingMatrix R = GetSampleRatingMatrix();
+                DataMatrix R = GetSampleRatingMatrix();
 
                 /*
                  * 3  3  0  1
@@ -68,7 +68,7 @@ namespace RecSysUnitTest
                  * 1  0  0  4
                  * 0  1  5  4
                  */
-                RatingMatrix R_predicted = GetSampleRatingMatrix();
+                DataMatrix R_predicted = GetSampleRatingMatrix();
                 R_predicted[0, 0] = 3;  // was 5
                 R_predicted[2, 1] = 2;  // was 1
                 R_predicted[1, 3] = 5;  // was 1
@@ -96,7 +96,7 @@ namespace RecSysUnitTest
                  * 1  0  0  4
                  * 0  1  5  4
                  */
-                RatingMatrix R = GetSampleRatingMatrix();
+                DataMatrix R = GetSampleRatingMatrix();
 
                 // act
                 PrefRelations PR = PrefRelations.CreateDiscrete(R);
@@ -157,7 +157,7 @@ namespace RecSysUnitTest
                  * 1  0  0  4
                  * 0  1  5  4
                  */
-                RatingMatrix R = GetSampleRatingMatrix();
+                DataMatrix R = GetSampleRatingMatrix();
 
                 // act
                 Dictionary<int, List<int>> topNItemsByUser = ItemRecommendationCore.GetTopNItemsByUser(R, 2);
@@ -182,8 +182,8 @@ namespace RecSysUnitTest
             public void LoadMovieLens()
             {
                 // act
-                RatingMatrix R_train;
-                RatingMatrix R_test;
+                DataMatrix R_train;
+                DataMatrix R_test;
                 Utils.LoadMovieLensSplitByCount("ua.test", out R_train, out R_test, 9, 7);
                 // 1	265	4	878542441
                 // assert
@@ -219,7 +219,7 @@ namespace RecSysUnitTest
                  * 1  0  0  4
                  * 0  1  5  4
                  */
-                RatingMatrix R = GetSampleRatingMatrix();
+                DataMatrix R = GetSampleRatingMatrix();
                 PrefRelations PR = PrefRelations.CreateDiscrete(R);
 
                 // act
@@ -273,7 +273,7 @@ namespace RecSysUnitTest
                  * 1  0  0  4
                  * 0  1  5  4
                  */
-                RatingMatrix R = GetSampleRatingMatrix();
+                DataMatrix R = GetSampleRatingMatrix();
                 PrefRelations PR = PrefRelations.CreateDiscrete(R);
 
                 // act
@@ -281,11 +281,11 @@ namespace RecSysUnitTest
 
                 // assert
                 // How many ratings we have then how many positions we have
-                Debug.Assert(positionMatrix.NonZerosCount == R.Matrix.NonZerosCount);
+                Debug.Assert(positionMatrix.NonZerosCount == R.AsSparseMatrix.NonZerosCount);
 
                 // Check if each rating has a corresponding position
                 // we have check the count so don't need to check the oppsite
-                foreach (Tuple<int, int, double> element in R.Matrix.EnumerateIndexed(Zeros.AllowSkip))
+                foreach (Tuple<int, int, double> element in R.AsSparseMatrix.EnumerateIndexed(Zeros.AllowSkip))
                 {
                     int indexOfUser = element.Item1;
                     int indexOfItem = element.Item2;

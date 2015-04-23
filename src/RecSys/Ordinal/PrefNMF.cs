@@ -16,7 +16,7 @@ namespace RecSys.Ordinal
     /// </summary>
     public class PrefNMF
     {
-        public static RatingMatrix PredictRatings(PrefRelations PR_train, RatingMatrix R_unknown,
+        public static DataMatrix PredictRatings(PrefRelations PR_train, DataMatrix R_unknown,
            int maxEpoch, double learnRate, double regularizationOfUser, double regularizationOfItem, int factorCount)
         {
             // Latent features
@@ -25,7 +25,7 @@ namespace RecSys.Ordinal
 
             LearnLatentFeatures(PR_train, maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount, out P, out Q);
 
-            RatingMatrix R_predicted = new RatingMatrix(R_unknown.Matrix.PointwiseMultiply(P.Multiply(Q)));
+            DataMatrix R_predicted = new DataMatrix(R_unknown.Matrix.PointwiseMultiply(P.Multiply(Q)));
             // TODO: should we do this? should we put it into [0,1]??? Seems zero entries are also converted into 0.5!Normalize the result
             //R_predicted.Matrix.MapInplace(x => RecSys.Core.SpecialFunctions.InverseLogit(x), Zeros.AllowSkip);
             return R_predicted;

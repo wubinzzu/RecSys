@@ -17,28 +17,28 @@ namespace RecSys.Core
     public static class Metric
     {
         #region Public interfaces to compute similarities of matrix/preference relations
-        public static void GetPearsonOfRows(RatingMatrix R, int maxCountOfNeighbors,
+        public static void GetPearsonOfRows(DataMatrix R, int maxCountOfNeighbors,
             double strongSimilarityThreshold, out SimilarityData neighborsByObject,
             out HashSet<Tuple<int, int>> strongSimilarityIndicators)
         {
             ComputeSimilarities(R.Matrix, SimilarityMetric.PearsonRating, maxCountOfNeighbors,
                 strongSimilarityThreshold, out neighborsByObject, out strongSimilarityIndicators);
         }
-        public static void GetCosineOfRows(RatingMatrix R, int maxCountOfNeighbors, 
+        public static void GetCosineOfRows(DataMatrix R, int maxCountOfNeighbors, 
             double strongSimilarityThreshold, out SimilarityData neighborsByObject)
         {
             HashSet<Tuple<int, int>> foo;
             ComputeSimilarities(R.Matrix, SimilarityMetric.CosineRating, maxCountOfNeighbors,
                 strongSimilarityThreshold, out neighborsByObject, out foo);
         }
-        public static void GetPearsonOfColumns(RatingMatrix R, int maxCountOfNeighbors,
+        public static void GetPearsonOfColumns(DataMatrix R, int maxCountOfNeighbors,
             double strongSimilarityThreshold, out SimilarityData neighborsByObject,
             out HashSet<Tuple<int, int>> strongSimilarityIndicators)
         {
             ComputeSimilarities(R.Matrix.Transpose(), SimilarityMetric.PearsonRating, maxCountOfNeighbors,
                 strongSimilarityThreshold, out neighborsByObject, out strongSimilarityIndicators);
         }
-        public static void GetCosineOfColumns(RatingMatrix R, int maxCountOfNeighbors,
+        public static void GetCosineOfColumns(DataMatrix R, int maxCountOfNeighbors,
             double strongSimilarityThreshold, out SimilarityData neighborsByObject,
             out HashSet<Tuple<int, int>> strongSimilarityIndicators)
         {
@@ -220,8 +220,8 @@ namespace RecSys.Core
             SparseMatrix pr_a = PR[u_a];
             SparseMatrix pr_b = PR[u_b];
 
-            Debug.Assert(pr_a.Trace() == SparseMatrix.Zero, "The diagonal of user preference relation matrix should be left empty.");
-            Debug.Assert(pr_b.Trace() == SparseMatrix.Zero, "The diagonal of user preference relation matrix should be left empty.");
+            //Debug.Assert(pr_a.Trace() == SparseMatrix.Zero, "The diagonal of user preference relation matrix should be left empty.");
+            //Debug.Assert(pr_b.Trace() == SparseMatrix.Zero, "The diagonal of user preference relation matrix should be left empty.");
 
             // The number of preference relations agreed between users a and b
             int agreedCount = pr_a.Fold2((count, prefOfA, prefOfB) =>

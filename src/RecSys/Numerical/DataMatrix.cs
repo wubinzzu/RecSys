@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace RecSys.Numerical
 {
     [Serializable]
-    public class RatingMatrix
+    public class DataMatrix
     {
         #region Variables
         private SparseMatrix ratingMatrix;
@@ -61,15 +61,15 @@ namespace RecSys.Numerical
         #endregion
 
         #region Constructors
-        public RatingMatrix(int userCount, int itemCount)
+        public DataMatrix(int userCount, int itemCount)
         {
             ratingMatrix = new SparseMatrix(userCount, itemCount);
         }
-        public RatingMatrix(SparseMatrix ratingMatrix)
+        public DataMatrix(SparseMatrix ratingMatrix)
         {
             this.ratingMatrix = ratingMatrix;
         }
-        public RatingMatrix(Matrix<double> ratingMatrix)
+        public DataMatrix(Matrix<double> ratingMatrix)
         {
             this.ratingMatrix = ratingMatrix.Storage.IsDense ? SparseMatrix.OfMatrix(ratingMatrix) : (SparseMatrix)ratingMatrix;
         }
@@ -139,14 +139,14 @@ namespace RecSys.Numerical
             return ratingMatrix.Row(indexOfRow).GetNonZerosCount();
         }
 
-        public RatingMatrix IndexesOfNonZeroElements()
+        public DataMatrix IndexesOfNonZeroElements()
         {
-            return new RatingMatrix(ratingMatrix.PointwiseDivide(ratingMatrix));
+            return new DataMatrix(ratingMatrix.PointwiseDivide(ratingMatrix));
         }
 
-        public RatingMatrix Multiply(double scalar)
+        public DataMatrix Multiply(double scalar)
         {
-            return new RatingMatrix(ratingMatrix.Multiply(scalar));
+            return new DataMatrix(ratingMatrix.Multiply(scalar));
         }
 
         public Matrix<double> PointwiseMultiply(Matrix<double> other)
@@ -158,7 +158,7 @@ namespace RecSys.Numerical
         /// Merge another matrix to this matrix. It is required that two matrixes do not overlap
         /// </summary>
         /// <param name="matrix"></param>
-        public void MergeNonOverlap(RatingMatrix matrix)
+        public void MergeNonOverlap(DataMatrix matrix)
         {
             int count = ratingMatrix.NonZerosCount;
             ratingMatrix += matrix.Matrix;

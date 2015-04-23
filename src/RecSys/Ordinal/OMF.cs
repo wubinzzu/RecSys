@@ -31,7 +31,7 @@ namespace RecSys.Ordinal
         /// <returns>The predicted ratings on R_unknown</returns>
         #region PredictRatings
         public static string PredictRatings(SparseMatrix R_train, SparseMatrix R_unknown,
- SparseMatrix R_scorer, List<double> quantizer, out RatingMatrix R_predicted,
+ SparseMatrix R_scorer, List<double> quantizer, out DataMatrix R_predicted,
             out Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem)
         {
             StringBuilder log = new StringBuilder();
@@ -222,7 +222,7 @@ namespace RecSys.Ordinal
             });
             #endregion
 
-            R_predicted = new RatingMatrix(R_predicted_out);
+            R_predicted = new DataMatrix(R_predicted_out);
             OMFDistributionByUserItem = OMFDistributionByUserItem_out;
 
             return log.ToString();

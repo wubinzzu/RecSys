@@ -19,18 +19,18 @@ namespace RecSys.Ordinal
     /// </summary>
     public static class PrefUserKNN
     {
-        public static RatingMatrix PredictRatings(PrefRelations PR_train,
-            RatingMatrix R_unknown, int K, SimilarityData neighborsByUser)
+        public static DataMatrix PredictRatings(PrefRelations PR_train,
+            DataMatrix R_unknown, int K, SimilarityData neighborsByUser)
         {
             Debug.Assert(PR_train.UserCount == R_unknown.UserCount);
             Debug.Assert(PR_train.ItemCount == R_unknown.ItemCount);
 
             // This matrix stores predictions
-            RatingMatrix R_predicted = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+            DataMatrix R_predicted = new DataMatrix(R_unknown.UserCount, R_unknown.ItemCount);
 
             // This can be considered as the R_train in standard UserKNN
             SparseMatrix positionMatrix = PR_train.GetPositionMatrix();
-            RatingMatrix ratingMatrixFromPositions = new RatingMatrix(positionMatrix);
+            DataMatrix ratingMatrixFromPositions = new DataMatrix(positionMatrix);
 
             Vector<double> meanByUser = ratingMatrixFromPositions.GetUserMeans();
             Vector<double> meanByItem = ratingMatrixFromPositions.GetItemMeans();

@@ -14,7 +14,7 @@ namespace RecSys.Ordinal
     {
         Vector<double> meanByUser;
         Vector<double> meanByItem;
-        RatingMatrix R_train;
+        DataMatrix R_train;
         HashSet<Tuple<int, int>> strongSimilarityIndicators;
         // The weights for item-item correlation features
         // It is the \vec{w} in the paper, and featureWeightByItemItem[i,j] is w_ij
@@ -23,11 +23,11 @@ namespace RecSys.Ordinal
 
         Dictionary<Tuple<int, int>, List<double>> OMFDistributions;
 
-        public void PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown, 
+        public void PredictRatings(DataMatrix R_train, DataMatrix R_unknown, 
             HashSet<Tuple<int,int>> strongSimilarityIndicators, 
             Dictionary<Tuple<int, int>, List<double>> OMFDistributions, 
             double regularization, double learnRate, int maxEpoch, int ratingLevels, 
-            out RatingMatrix R_predicted_expectations, out RatingMatrix R_predicted_mostlikely)
+            out DataMatrix R_predicted_expectations, out DataMatrix R_predicted_mostlikely)
         {
             /************************************************************
              *   Parameterization and Initialization
@@ -39,8 +39,8 @@ namespace RecSys.Ordinal
             meanByItem = R_train.GetItemMeans(); // Mean value of each item
             this.R_train = R_train;
             this.OMFDistributions = OMFDistributions;
-            R_predicted_expectations = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
-            R_predicted_mostlikely = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+            R_predicted_expectations = new DataMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+            R_predicted_mostlikely = new DataMatrix(R_unknown.UserCount, R_unknown.ItemCount);
 
 
             // Initialize the weights

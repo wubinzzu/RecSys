@@ -23,7 +23,7 @@ namespace RecSys.Core
         /// each value indicates the quality of the item to a user.</param>
         /// <param name="topN">The number of items to be recommended for each user.</param>
         /// <returns>Each Key is a user and Value is the top N recommended items for that user.</returns>
-        public static Dictionary<int, List<int>> GetTopNItemsByUser(RatingMatrix R, int topN)
+        public static Dictionary<int, List<int>> GetTopNItemsByUser(DataMatrix R, int topN)
         {
             int userCount = R.UserCount;
             int itemCount = R.ItemCount;
@@ -67,7 +67,7 @@ namespace RecSys.Core
 
         #region GetRelevantItemsByUser
         // Get the relevant items of each user, i.e. rated no lower than the criteria
-        public static Dictionary<int, List<int>> GetRelevantItemsByUser(RatingMatrix R, double criteria)
+        public static Dictionary<int, List<int>> GetRelevantItemsByUser(DataMatrix R, double criteria)
         {
             int userCount = R.UserCount;
             int itemCount = R.ItemCount;

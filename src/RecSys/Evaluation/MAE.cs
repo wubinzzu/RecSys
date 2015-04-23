@@ -8,7 +8,7 @@ namespace RecSys.Evaluation
     /// </summary>
     public class MAE
     {
-        public static double Evaluate(RatingMatrix correctMatrix, RatingMatrix predictedMatrix)
+        public static double Evaluate(DataMatrix correctMatrix, DataMatrix predictedMatrix)
         {
             return (correctMatrix.Matrix - predictedMatrix.Matrix)
                 .ColumnAbsoluteSums().Sum() / correctMatrix.NonZerosCount;

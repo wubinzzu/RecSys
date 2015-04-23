@@ -11,7 +11,7 @@ namespace RecSys.Evaluation
     /// </summary>
     public class RMSE
     {
-        public static double Evaluate(RatingMatrix correctMatrix, RatingMatrix predictedMatrix)
+        public static double Evaluate(DataMatrix correctMatrix, DataMatrix predictedMatrix)
         {
             Debug.Assert(correctMatrix.NonZerosCount == predictedMatrix.NonZerosCount);
             double enumerator = (predictedMatrix.Matrix - correctMatrix.Matrix).FrobeniusNorm();

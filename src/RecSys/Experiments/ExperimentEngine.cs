@@ -29,11 +29,11 @@ namespace RecSys.Experiments
         ************************************************************/
 
         #region Experiment settings
-        public RatingMatrix R_train;
-        public RatingMatrix R_test;
-        public RatingMatrix R_unknown;
+        public DataMatrix R_train;
+        public DataMatrix R_test;
+        public DataMatrix R_unknown;
         public PrefRelations PR_train;
-        public PrefRelations PR_test;
+        //public PrefRelations PR_test;
         public SimilarityData UserSimilaritiesOfRating;
         public SimilarityData UserSimilaritiesOfPref;
         public SimilarityData ItemSimilaritiesOfRating;
@@ -51,6 +51,8 @@ namespace RecSys.Experiments
         public int MaxCountOfNeighbors;
         public double StrongSimilarityThreshold;
         public Dictionary<int, List<int>> RelevantItemsByUser;
+        public string PathToVariables { get; set; }
+        public string PathToDataSets { get; set; }
         #endregion
 
         #region Constructor
@@ -68,24 +70,28 @@ namespace RecSys.Experiments
             ReadyForNumerical = false;
             ReadyForOrdinal = false;
             StrongSimilarityThreshold = strongSimilarityThreshold;
+            PathToVariables = @"SavedVariables/";
+            PathToDataSets = @"DataSets/";
         }
         public ExperimentEngine() { }
         #endregion
 
         #region GetDataFileName
         // When save to data to file, the settings will be encoded into file name
-        private string GetDataFileName()
+        private string GetDataFileName(string variableName)
         {
-            string output = "";
-            output+= DataSetFile;
-            output+= "_S" + Seed;
-            output+= "_MCR" + MinCountOfRatings;
-            output += "_CRT" + CountOfRatingsForTrain;
-            output += "_MCN" + MaxCountOfNeighbors;
-            output += "_SST" + StrongSimilarityThreshold.ToString("0.00");
-            output +=".bin";
+            if (!Directory.Exists(PathToVariables)) { Directory.CreateDirectory(PathToVariables); }
+            string fileName = string.Format("{0}{1}_S{2}_MCR{3}_CRT{4}_MCN{5}_SST{6}.var",
+                PathToVariables,
+                variableName,
+                DataSetFile,
+                Seed,
+                MinCountOfRatings,
+                CountOfRatingsForTrain,
+                MaxCountOfNeighbors,
+                StrongSimilarityThreshold.ToString("0.00"));
 
-            return output;
+            return fileName;
         }
         #endregion
 
@@ -115,23 +121,23 @@ namespace RecSys.Experiments
             log.AppendLine(Utils.StopTimer());
 
             #region Prepare similarity data
-            if (File.Exists("USR_" + GetDataFileName())
-                && File.Exists("ISR_" + GetDataFileName())
-                && File.Exists("SSIIR_" + GetDataFileName()))
+            if (File.Exists(GetDataFileName("USR"))
+                && File.Exists(GetDataFileName("ISR"))
+                && File.Exists(GetDataFileName("SSIIR")))
             {
                 Utils.StartTimer();
                 Utils.PrintHeading("Load user-user similarities (rating based)");
-                UserSimilaritiesOfRating = Utils.IO<SimilarityData>.LoadObject("USR_" + GetDataFileName());
+                UserSimilaritiesOfRating = Utils.IO<SimilarityData>.LoadObject(GetDataFileName("USR"));
                 Utils.StopTimer();
 
                 Utils.StartTimer();
                 Utils.PrintHeading("Load item-item similarities (rating based)");
-                ItemSimilaritiesOfRating = Utils.IO<SimilarityData>.LoadObject("ISR_" + GetDataFileName());
+                ItemSimilaritiesOfRating = Utils.IO<SimilarityData>.LoadObject(GetDataFileName("ISR"));
                 Utils.StopTimer();
 
                 Utils.StartTimer();
                 Utils.PrintHeading("Load item-item strong similarity indicators (rating based)");
-                StrongSimilarityIndicatorsByItemRating = Utils.IO<HashSet<Tuple<int, int>>>.LoadObject("SSIIR_" + GetDataFileName());
+                StrongSimilarityIndicatorsByItemRating = Utils.IO<HashSet<Tuple<int, int>>>.LoadObject(GetDataFileName("SSIIR"));
                 Utils.StopTimer();
             }
             else
@@ -142,7 +148,7 @@ namespace RecSys.Experiments
                     out UserSimilaritiesOfRating);
                 if (saveLoadedData) 
                 {
-                    Utils.IO<SimilarityData>.SaveObject(UserSimilaritiesOfRating, "USR_" + GetDataFileName());
+                    Utils.IO<SimilarityData>.SaveObject(UserSimilaritiesOfRating, GetDataFileName("USR"));
                 }
                 Utils.StopTimer();
 
@@ -152,9 +158,9 @@ namespace RecSys.Experiments
                     out ItemSimilaritiesOfRating, out StrongSimilarityIndicatorsByItemRating);
                 if (saveLoadedData)
                 {
-                    Utils.IO<SimilarityData>.SaveObject(ItemSimilaritiesOfRating, "ISR_" + GetDataFileName());
+                    Utils.IO<SimilarityData>.SaveObject(ItemSimilaritiesOfRating, GetDataFileName("ISR"));
                     Utils.IO<HashSet<Tuple<int,int>>>
-                        .SaveObject(StrongSimilarityIndicatorsByItemRating, "SSIIR_" + GetDataFileName());
+                        .SaveObject(StrongSimilarityIndicatorsByItemRating, GetDataFileName("SSIIR"));
                 }
                 Utils.StopTimer();
             }
@@ -180,23 +186,23 @@ namespace RecSys.Experiments
             log.AppendLine("Converting R_train into PR_train");
             PR_train = PrefRelations.CreateDiscrete(R_train);
 
-            Console.WriteLine("Converting R_test into PR_test");
-            log.AppendLine("Converting R_test into PR_test");
-            PR_test = PrefRelations.CreateDiscrete(R_test);
+            //Console.WriteLine("Converting R_test into PR_test");
+            //log.AppendLine("Converting R_test into PR_test");
+            //PR_test = PrefRelations.CreateDiscrete(R_test);
 
             log.AppendLine(Utils.StopTimer());
 
             #region Prepare similarity data
-            if (File.Exists("USP_" + GetDataFileName())
-                && File.Exists("ISP_" + GetDataFileName())
-                && File.Exists("SSIIP_" + GetDataFileName()))
+            if (File.Exists(GetDataFileName("USP"))
+                && File.Exists(GetDataFileName("ISP"))
+                && File.Exists(GetDataFileName("SSIIP")))
             {
 
                 Utils.StartTimer();
                 Utils.PrintHeading("Load user, item, indicators variables (Pref based)");
-                UserSimilaritiesOfPref = Utils.IO<SimilarityData>.LoadObject("USP_" + GetDataFileName());
-                ItemSimilaritiesOfPref = Utils.IO<SimilarityData>.LoadObject("ISP_" + GetDataFileName());
-                StrongSimilarityIndicatorsByItemPref = Utils.IO<HashSet<Tuple<int,int>>>.LoadObject("SSIIP_" + GetDataFileName());
+                UserSimilaritiesOfPref = Utils.IO<SimilarityData>.LoadObject(GetDataFileName("USP"));
+                ItemSimilaritiesOfPref = Utils.IO<SimilarityData>.LoadObject(GetDataFileName("ISP"));
+                StrongSimilarityIndicatorsByItemPref = Utils.IO<HashSet<Tuple<int, int>>>.LoadObject(GetDataFileName("SSIIP"));
                 Utils.StopTimer();
             }
             else
@@ -211,17 +217,17 @@ namespace RecSys.Experiments
                 // item-item similarities, it is not the same as user-user pref similarities
                 Utils.StartTimer();
                 Utils.PrintHeading("Compute item-item similarities (Pref based)");
-                RatingMatrix PR_userwise_preferences = new RatingMatrix(PR_train.GetPositionMatrix());
+                DataMatrix PR_userwise_preferences = new DataMatrix(PR_train.GetPositionMatrix());
                 Metric.GetCosineOfColumns(PR_userwise_preferences, MaxCountOfNeighbors, StrongSimilarityThreshold,
                     out ItemSimilaritiesOfPref, out StrongSimilarityIndicatorsByItemPref);
                 Utils.StopTimer();
 
                 if (saveLoadedData)
                 {
-                    Utils.IO<SimilarityData>.SaveObject(UserSimilaritiesOfPref, "USP_" + GetDataFileName());
-                    Utils.IO<SimilarityData>.SaveObject(ItemSimilaritiesOfPref, "ISP_" + GetDataFileName());
+                    Utils.IO<SimilarityData>.SaveObject(UserSimilaritiesOfPref, GetDataFileName("USP"));
+                    Utils.IO<SimilarityData>.SaveObject(ItemSimilaritiesOfPref, GetDataFileName("ISP"));
                     Utils.IO<HashSet<Tuple<int,int>>>
-                        .SaveObject(StrongSimilarityIndicatorsByItemPref, "SSIIP_" + GetDataFileName());
+                        .SaveObject(StrongSimilarityIndicatorsByItemPref, GetDataFileName("SSIIP"));
                 }
                 Utils.StopTimer();
 
@@ -262,7 +268,7 @@ namespace RecSys.Experiments
             // Prediction
             Utils.StartTimer();
             double globalMean = R_train.GetGlobalMean();
-            RatingMatrix R_predicted = R_unknown.Multiply(globalMean);
+            DataMatrix R_predicted = R_unknown.Multiply(globalMean);
             log.AppendLine(Utils.StopTimer());
 
             // Numerical Evaluation
@@ -286,7 +292,7 @@ namespace RecSys.Experiments
             // Prediction
             Utils.StartTimer();
             var meanByItem = R_train.GetItemMeans();
-            RatingMatrix R_predicted = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+            DataMatrix R_predicted = new DataMatrix(R_unknown.UserCount, R_unknown.ItemCount);
             foreach (var element in R_unknown.Matrix.EnumerateIndexed(Zeros.AllowSkip))
             {
                 int indexOfUser = element.Item1;
@@ -319,7 +325,7 @@ namespace RecSys.Experiments
 
             // Prediction
             Utils.StartTimer();
-            RatingMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, maxEpoch,
+            DataMatrix R_predicted = NMF.PredictRatings(R_train, R_unknown, maxEpoch,
                 learnRate, regularization, factorCount);
             log.AppendLine(Utils.StopTimer());
 
@@ -350,7 +356,7 @@ namespace RecSys.Experiments
 
             // Prediction
             Utils.StartTimer();
-            RatingMatrix R_predicted = Numerical.UserKNN.PredictRatings(R_train, R_unknown, UserSimilaritiesOfRating, neighborCount);
+            DataMatrix R_predicted = Numerical.UserKNN.PredictRatings(R_train, R_unknown, UserSimilaritiesOfRating, neighborCount);
             log.AppendLine(Utils.StopTimer());
 
             // Numerical Evaluation
@@ -381,7 +387,7 @@ namespace RecSys.Experiments
 
             // Prediction
             Utils.StartTimer();
-            RatingMatrix R_predicted = PrefNMF.PredictRatings(PR_train, R_unknown,
+            DataMatrix R_predicted = PrefNMF.PredictRatings(PR_train, R_unknown,
                 maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount);
             log.AppendLine(Utils.StopTimer());
 
@@ -405,7 +411,7 @@ namespace RecSys.Experiments
 
             // Prediction
             Utils.StartTimer();
-            RatingMatrix R_predicted = PrefUserKNN.PredictRatings(PR_train, R_unknown, neighborCount, UserSimilaritiesOfPref);
+            DataMatrix R_predicted = PrefUserKNN.PredictRatings(PR_train, R_unknown, neighborCount, UserSimilaritiesOfPref);
             log.AppendLine(Utils.StopTimer());
 
             // TopN Evaluation
@@ -425,9 +431,9 @@ namespace RecSys.Experiments
         {
             // Load OMFDistribution from file
             Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem;
-            if (File.Exists("PrefOMF_" + GetDataFileName()))
+            if (File.Exists(GetDataFileName("PrefOMF_")))
             {
-                OMFDistributionByUserItem = Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.LoadObject("PrefOMF_" + GetDataFileName());
+                OMFDistributionByUserItem = Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.LoadObject(GetDataFileName("PrefOMF_"));
             }
             else
             {
@@ -440,11 +446,11 @@ namespace RecSys.Experiments
 
             // Prediction
             Utils.StartTimer();
-            RatingMatrix R_predicted_expectations;
-            RatingMatrix R_predicted_mostlikely;
+            DataMatrix R_predicted_expectations;
+            DataMatrix R_predicted_mostlikely;
 
             // Convert PR_train into user-wise preferences
-            RatingMatrix R_train_positions = new RatingMatrix(PR_train.GetPositionMatrix());
+            DataMatrix R_train_positions = new DataMatrix(PR_train.GetPositionMatrix());
             R_train_positions.Quantization(quantizer[0], quantizer[quantizer.Count - 1] - quantizer[0], quantizer);
 
             ORF orf = new ORF();
@@ -478,9 +484,9 @@ namespace RecSys.Experiments
         {
             // Load OMFDistribution from file
             Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem;
-            if (File.Exists("RatingOMF_" + GetDataFileName()))
+            if (File.Exists(GetDataFileName("RatingOMF_")))
             {
-                OMFDistributionByUserItem = Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.LoadObject("RatingOMF_" + GetDataFileName());
+                OMFDistributionByUserItem = Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.LoadObject(GetDataFileName("RatingOMF_"));
             }
             else
             {
@@ -493,8 +499,8 @@ namespace RecSys.Experiments
 
             // Prediction
             Utils.StartTimer();
-            RatingMatrix R_predicted_expectations;
-            RatingMatrix R_predicted_mostlikely;
+            DataMatrix R_predicted_expectations;
+            DataMatrix R_predicted_mostlikely;
             ORF orf = new ORF();
             orf.PredictRatings( R_train, R_unknown, StrongSimilarityIndicatorsByItemRating, 
                 OMFDistributionByUserItem, regularization, learnRate, maxEpoch, 
@@ -535,13 +541,12 @@ namespace RecSys.Experiments
             // =============PrefNMF prediction on Train+Unknown============
             // Get ratings from scorer, for both train and test
             // R_all contains indexes of all ratings both train and test
-            RatingMatrix R_all = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+            DataMatrix R_all = new DataMatrix(R_unknown.UserCount, R_unknown.ItemCount);
             R_all.MergeNonOverlap(R_unknown);
             R_all.MergeNonOverlap(R_train.IndexesOfNonZeroElements());
             PrefRelations PR_unknown = PrefRelations.CreateDiscrete(R_all);
 
             Utils.StartTimer();
-            // PR_test should be replaced with PR_unknown, but it is the same
             PrefRelations PR_predicted = PrefNMF.PredictPrefRelations(PR_train, PR_unknown,
                 maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount);
 
@@ -550,11 +555,11 @@ namespace RecSys.Experiments
             PR_predicted.quantization(0, 1.0,
                 new List<double> { Config.Preferences.LessPreferred, 
                         Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });
-            RatingMatrix R_predictedByPrefNMF = new RatingMatrix(PR_predicted.GetPositionMatrix());
+            DataMatrix R_predictedByPrefNMF = new DataMatrix(PR_predicted.GetPositionMatrix());
 
             // PR_train itself is already in quantized form!
             //PR_train.quantization(0, 1.0, new List<double> { Config.Preferences.LessPreferred, Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });
-            RatingMatrix R_train_positions = new RatingMatrix(PR_train.GetPositionMatrix());
+            DataMatrix R_train_positions = new DataMatrix(PR_train.GetPositionMatrix());
             R_train_positions.Quantization(quantizer[0], quantizer[quantizer.Count - 1] - quantizer[0], quantizer);
             log.AppendLine(Utils.StopTimer());
 
@@ -562,7 +567,7 @@ namespace RecSys.Experiments
             log.AppendLine(Utils.PrintHeading("Ordinal Matrix Factorization with PrefNMF as scorer"));
             Utils.StartTimer();
             Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem;
-            RatingMatrix R_predicted;
+            DataMatrix R_predicted;
             log.AppendLine(OMF.PredictRatings(R_train_positions.Matrix, R_unknown.Matrix, R_predictedByPrefNMF.Matrix,
                 quantizer, out R_predicted, out OMFDistributionByUserItem));
             log.AppendLine(Utils.StopTimer());
@@ -575,9 +580,9 @@ namespace RecSys.Experiments
             }
 
             // Save OMFDistribution to file
-            if (!File.Exists("PrefOMF_" + GetDataFileName()))
+            if (!File.Exists(GetDataFileName("PrefOMF_")))
             {
-                Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.SaveObject(OMFDistributionByUserItem, "PrefOMF_" + GetDataFileName());
+                Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.SaveObject(OMFDistributionByUserItem, GetDataFileName("PrefOMF_"));
             }
 
             return log.ToString();
@@ -595,11 +600,11 @@ namespace RecSys.Experiments
             // NMF Prediction
             // Get ratings from scorer, for both train and test
             // R_all contains indexes of all ratings both train and test
-            RatingMatrix R_all = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+            DataMatrix R_all = new DataMatrix(R_unknown.UserCount, R_unknown.ItemCount);
             R_all.MergeNonOverlap(R_unknown);
             R_all.MergeNonOverlap(R_train.IndexesOfNonZeroElements());
             Utils.StartTimer();
-            RatingMatrix R_predictedByNMF = NMF.PredictRatings(R_train, R_all, maxEpoch,
+            DataMatrix R_predictedByNMF = NMF.PredictRatings(R_train, R_all, maxEpoch,
                 learnRate, regularization, factorCount);
             log.AppendLine(Utils.StopTimer());
 
@@ -607,7 +612,7 @@ namespace RecSys.Experiments
             log.AppendLine(Utils.PrintHeading("Ordinal Matrix Factorization with NMF as scorer"));
             Utils.StartTimer();
             Dictionary<Tuple<int, int>, List<double>> OMFDistributionByUserItem;
-            RatingMatrix R_predicted;
+            DataMatrix R_predicted;
             log.AppendLine(OMF.PredictRatings(R_train.Matrix, R_unknown.Matrix, R_predictedByNMF.Matrix,
                 quantizer, out R_predicted, out OMFDistributionByUserItem));
             log.AppendLine(Utils.StopTimer());
@@ -627,9 +632,9 @@ namespace RecSys.Experiments
             }
 
             // Save OMFDistribution to file
-            if(!File.Exists("RatingOMF_" + GetDataFileName()))
+            if (!File.Exists(GetDataFileName("RatingOMF_")))
             {
-                Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.SaveObject(OMFDistributionByUserItem, "RatingOMF_" + GetDataFileName());
+                Utils.IO<Dictionary<Tuple<int, int>, List<double>>>.SaveObject(OMFDistributionByUserItem, GetDataFileName("RatingOMF_"));
             }
 
             return log.ToString();

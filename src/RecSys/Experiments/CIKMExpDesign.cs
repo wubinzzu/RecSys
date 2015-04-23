@@ -13,7 +13,7 @@ namespace RecSys.Experiments
         static int neighborCount = 50;
         static int factorCount = 50;
         static int defaultMaxEpoch = 100;
-        static string MovieLens20MFile = "MovieLens1M.data";//"100k.data";
+        static string MovieLens20MFile = "MovieLens1M.data";
         static List<int> GivenSizes = new List<int>() { 50, 60 };
         static int minTestSize = 10;
         static bool shuffle = true;

@@ -70,8 +70,8 @@ namespace RecSys
         /// <param name="shuffle">Specifies whether the lines in the file should be read 
         /// in random order or not.</param>
         /// <param name="seed">The random seed for shuffle.</param>
-        public static void LoadMovieLensSplitByCount(string fileOfDataSet, out RatingMatrix R_train,
-            out RatingMatrix R_test, int minCountOfRatings = Config.MinCountOfRatings,
+        public static void LoadMovieLensSplitByCount(string fileOfDataSet, out DataMatrix R_train,
+            out DataMatrix R_test, int minCountOfRatings = Config.MinCountOfRatings,
             int countOfRatingsForTrain = Config.CountOfRatingsForTrain, bool shuffle = false, int seed = 1)
         {
             Dictionary<int, int> userByIndex = new Dictionary<int, int>();   // Mapping from index in movielens file to user index in matrix
@@ -122,8 +122,8 @@ namespace RecSys
 
             Console.WriteLine(countOfRemovedUsers + " users have less than " + minCountOfRatings + " and were removed.");
 
-            R_train = new RatingMatrix(userByIndex.Count, itemByIndex.Count);
-            R_test = new RatingMatrix(userByIndex.Count, itemByIndex.Count);
+            R_train = new DataMatrix(userByIndex.Count, itemByIndex.Count);
+            R_test = new DataMatrix(userByIndex.Count, itemByIndex.Count);
 
             // Read file data into rating matrix
             Dictionary<int, int> trainCountByUser = new Dictionary<int, int>(); // count how many ratings in the train set of each user
@@ -143,13 +143,16 @@ namespace RecSys
             }
 
             // Process each line and put ratings into training/testing sets
-            List<SparseVector> R_test_list = new List<SparseVector>(userByIndex.Count);
-            List<SparseVector> R_train_list = new List<SparseVector>(userByIndex.Count);
-            for (int i = 0; i < userByIndex.Count;i++ )
-            {
-                R_test_list.Add(new SparseVector(itemByIndex.Count));
-                R_train_list.Add(new SparseVector(itemByIndex.Count));
-            }
+            List<Tuple<int, int, double>> R_train_cache = new List<Tuple<int, int, double>>();
+            List<Tuple<int, int, double>> R_test_cache = new List<Tuple<int, int, double>>();
+
+            //List<SparseVector> R_test_list = new List<SparseVector>(userByIndex.Count);
+            //List<SparseVector> R_train_list = new List<SparseVector>(userByIndex.Count);
+            //for (int i = 0; i < userByIndex.Count;i++ )
+            //{
+            //    R_test_list.Add(new SparseVector(itemByIndex.Count));
+            //    R_train_list.Add(new SparseVector(itemByIndex.Count));
+            //}
 
                 foreach (string line in linesInFile)
                 {
@@ -166,26 +169,26 @@ namespace RecSys
                         {
                             // Fill up the train set
                             //R_train[indexOfUser, indexOfItem] = rating;
-                            R_train_list[indexOfUser][indexOfItem] = rating;
+                            R_train_cache.Add(new Tuple<int,int,double>(indexOfUser,indexOfItem,rating));// = rating;
                             trainCountByUser[indexOfUser] = 1;
                         }
                         else if (trainCountByUser[indexOfUser] < countOfRatingsForTrain)
                         {
                             // Fill up the train set
                             //R_train.Matrix.Storage.At(indexOfUser, indexOfItem, rating);
-                            R_train_list[indexOfUser][indexOfItem] = rating;
+                            R_train_cache.Add(new Tuple<int, int, double>(indexOfUser, indexOfItem, rating));
                             trainCountByUser[indexOfUser]++;
                         }
                         else
                         {
                             // Fill up the test set
-                            R_test_list[indexOfUser][indexOfItem] = rating;
+                            R_test_cache.Add(new Tuple<int, int, double>(indexOfUser, indexOfItem, rating));
                             //R_test.Matrix.Storage.At(indexOfUser, indexOfItem, rating);
                         }
                     }
                 }
-                R_test = new RatingMatrix(SparseMatrix.OfRowVectors(R_test_list));
-                R_train = new RatingMatrix(SparseMatrix.OfRowVectors(R_train_list));
+                R_test = new DataMatrix(SparseMatrix.OfIndexed(R_test.UserCount, R_test.ItemCount, R_test_cache));
+                R_train = new DataMatrix(SparseMatrix.OfIndexed(R_train.UserCount, R_train.ItemCount, R_train_cache));
 
             Debug.Assert(userByIndex.Count * countOfRatingsForTrain == R_train.NonZerosCount);
         }
@@ -429,9 +432,9 @@ namespace RecSys
 
         #region Obsolete
         [Obsolete("LoadMovieLens(string path) is deprecated.")]
-        public static RatingMatrix LoadMovieLens(string path)
+        public static DataMatrix LoadMovieLens(string path)
         {
-            RatingMatrix R;
+            DataMatrix R;
 
             Dictionary<int, int> userMap = new Dictionary<int, int>();   // Mapping from index in movielens file to index in matrix
             Dictionary<int, int> itemMap = new Dictionary<int, int>();   // Mapping from index in movielens file to index in matrix
@@ -451,7 +454,7 @@ namespace RecSys
                 }
             }
 
-            R = new RatingMatrix(userMap.Count, itemMap.Count);
+            R = new DataMatrix(userMap.Count, itemMap.Count);
 
             foreach (string line in File.ReadLines(path))
             {

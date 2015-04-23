@@ -14,14 +14,14 @@ namespace RecSys
     /// </summary>
     public class NMF
     {
-        public static RatingMatrix PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown,
+        public static DataMatrix PredictRatings(DataMatrix R_train, DataMatrix R_unknown,
             int maxEpoch, double learnRate, double regularization, int factorCount)
         {
             int userCount = R_train.UserCount;
             int itemCount = R_train.ItemCount;
             int ratingCount = R_train.NonZerosCount;
             double meanOfGlobal = R_train.GetGlobalMean();
-            RatingMatrix R_train_unknown = R_train.IndexesOfNonZeroElements();  // For testing convergence
+            DataMatrix R_train_unknown = R_train.IndexesOfNonZeroElements();  // For testing convergence
 
             // User latent vectors with default seed
             Matrix<double> P = Utils.CreateRandomMatrixFromNormal(userCount, factorCount, 0, 0.1, Config.Seed);
@@ -125,7 +125,7 @@ namespace RecSys
 
                 R_predicted[indexOfUser, indexOfItem] = r_predicted;
             }
-            return new RatingMatrix(R_predicted);
+            return new DataMatrix(R_predicted);
             //return new RatingMatrix(R_unknown.PointwiseMultiply(P.Multiply(Q)));
         }
     }

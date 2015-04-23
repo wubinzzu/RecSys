@@ -104,7 +104,7 @@
     <Compile Include="Experiments\CIKMExpDesign.cs" />
     <Compile Include="Experiments\ExperimentEngine.cs" />
     <Compile Include="Experiments\ExperimentOfSpeed.cs" />
-    <Compile Include="Numerical\RatingMatrix.cs" />
+    <Compile Include="Numerical\DataMatrix.cs" />
     <Compile Include="Numerical\RatingVector.cs" />
     <Compile Include="Ordinal\OMF.cs" />
     <Compile Include="Ordinal\ORF.cs" />

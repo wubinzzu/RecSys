@@ -24,7 +24,7 @@ namespace RecSys.Numerical
         /// <param name="R_unknown"></param>
         /// <param name="K"></param>
         /// <returns></returns>
-        public static RatingMatrix PredictRatings(RatingMatrix R_train, RatingMatrix R_unknown, SimilarityData neighborsByUser, int K)
+        public static DataMatrix PredictRatings(DataMatrix R_train, DataMatrix R_unknown, SimilarityData neighborsByUser, int K)
         {
             // Debug
             Debug.Assert(R_train.UserCount == R_unknown.UserCount);
@@ -32,7 +32,7 @@ namespace RecSys.Numerical
             int cappedCount = 0, globalMeanCount = 0;
 
             // This matrix stores predictions
-            RatingMatrix R_predicted = new RatingMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+            DataMatrix R_predicted = new DataMatrix(R_unknown.UserCount, R_unknown.ItemCount);
 
             // Basic statistics from train set
             double globalMean = R_train.GetGlobalMean();
