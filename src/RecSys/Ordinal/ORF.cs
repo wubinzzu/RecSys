@@ -1,5 +1,7 @@
 ﻿using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
+using MathNet.Numerics.Statistics;
+using RecSys.Core;
 using RecSys.Numerical;
 using System;
 using System.Collections.Generic;
@@ -69,7 +71,7 @@ namespace RecSys.Ordinal
              *   Learn weights from training data R_train
             ************************************************************/
             #region Learn weights from training data R_train
-            double likelihood_prev = double.MinValue;
+            double likelihood_prev = -double.MaxValue;
             for (int epoch = 0; epoch < maxEpoch; epoch++)
             {
                 /************************************************************
@@ -100,7 +102,7 @@ namespace RecSys.Ordinal
 
                         //neighborsOfItem_i.Remove(indexOfItem_i);    // It is not a neighbor of itself
 
-                        // Remove weak neighbors
+                        // Keep strong neighbors
                         foreach (int indexOfNeighbor in itemsOfUser)
                         {
                             if (strongSimilarityIndicators.Contains(new Tuple<int,int>(indexOfItem_i, indexOfNeighbor))
@@ -108,6 +110,12 @@ namespace RecSys.Ordinal
                             {
                                 neighborsOfItem_i.Add(indexOfNeighbor);
                             }
+                            //else if(indexOfItem_i!=indexOfNeighbor)
+                            //{
+                            //    double pearson = Correlation.Pearson((SparseVector)R_train.Matrix.Column(indexOfItem_i),
+                            //        (SparseVector)R_train.Matrix.Column(indexOfNeighbor));
+                            //    Debug.Assert(pearson < 0.2);
+                            //}
                         }
 
                         // Partition function Z_ui
@@ -212,10 +220,10 @@ namespace RecSys.Ordinal
                 ************************************************************/
                 #region Compute sum of regularized log likelihood see if it converges
 
-                double likelihood_curr = 0;
                 if (epoch == 0 || epoch == maxEpoch - 1 || epoch % (int)Math.Ceiling(maxEpoch * 0.1) == 4)
                 //if (true)
                 {
+                    double likelihood_curr = 0;
                     // We compute user by user so that Z_ui can be reused
                     double sumOfLogLL = 0.0;   // sum of log local likelihoods, first term in Eq. 20
                     foreach (var user in R_train.Users)
@@ -270,7 +278,17 @@ namespace RecSys.Ordinal
                         * featureWeightByItemItem.Sum(x => x.Value * x.Value);// featureWeightByItemItem.SquaredSum();
                     likelihood_curr = regularizedSumOfLogLL;
                     Utils.PrintEpoch("Epoch", epoch, maxEpoch, "Reg sum of log LL", regularizedSumOfLogLL.ToString("0.000"));
+
+                    double improvment = Math.Abs(likelihood_prev) - Math.Abs(likelihood_curr);
+                    if (improvment < 0.001)
+                    {
+                        Console.WriteLine("Improvment less than 0.0001, learning stopped.");
+                        break;
+                    }
+
+                    likelihood_prev = likelihood_curr;
                 }
+
 
                 /*
                 if(epoch==0)
@@ -293,7 +311,6 @@ namespace RecSys.Ordinal
                 }
                 */
  
-                likelihood_prev = likelihood_curr;
                 #endregion
             }
             #endregion

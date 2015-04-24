@@ -504,6 +504,12 @@ namespace RecSys
             //return Math.Pow(matrix.FrobeniusNorm(), 2);
         }
 
+        public static double SquaredSum(this Vector<double> vector)
+        {
+            return vector.PointwisePower(2).Sum();
+            //return Math.Pow(matrix.FrobeniusNorm(), 2);
+        }
+
         public static int GetNonZerosCount(this Vector<double> vector)
         {
             //Debug.Assert(!vector.Storage.IsDense);

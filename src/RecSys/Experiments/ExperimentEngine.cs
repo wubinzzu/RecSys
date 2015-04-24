@@ -43,6 +43,7 @@ namespace RecSys.Experiments
         public bool ReadyForNumerical;
         public bool ReadyForOrdinal;
         public string DataSetFile;
+        public string DataSetName;
         public int MinCountOfRatings;
         public int CountOfRatingsForTrain;
         public bool ShuffleData;
@@ -60,7 +61,10 @@ namespace RecSys.Experiments
             int countOfRatingsForTrain, bool shuffleData, int seed, double relevantItemCriteria,
             int maxCountOfNeighbors, double strongSimilarityThreshold)
         {
-            DataSetFile = dataSetFile;
+            PathToVariables = @"SavedVariables/";
+            PathToDataSets = @"DataSets/";
+            DataSetName = dataSetFile;
+            DataSetFile = PathToDataSets + dataSetFile;
             MinCountOfRatings = minCountOfRatings;
             CountOfRatingsForTrain = countOfRatingsForTrain;
             ShuffleData = shuffleData;
@@ -70,8 +74,7 @@ namespace RecSys.Experiments
             ReadyForNumerical = false;
             ReadyForOrdinal = false;
             StrongSimilarityThreshold = strongSimilarityThreshold;
-            PathToVariables = @"SavedVariables/";
-            PathToDataSets = @"DataSets/";
+
         }
         public ExperimentEngine() { }
         #endregion
@@ -81,10 +84,10 @@ namespace RecSys.Experiments
         private string GetDataFileName(string variableName)
         {
             if (!Directory.Exists(PathToVariables)) { Directory.CreateDirectory(PathToVariables); }
-            string fileName = string.Format("{0}{1}_S{2}_MCR{3}_CRT{4}_MCN{5}_SST{6}.var",
+            string fileName = string.Format("{0}{1}_{2}_S{3}_MCR{4}_CRT{5}_MCN{6}_SST{7}.var",
                 PathToVariables,
                 variableName,
-                DataSetFile,
+                DataSetName,
                 Seed,
                 MinCountOfRatings,
                 CountOfRatingsForTrain,
@@ -144,7 +147,7 @@ namespace RecSys.Experiments
             {
                 Utils.StartTimer();
                 Utils.PrintHeading("Compute user-user similarities (rating based)");
-                Metric.GetCosineOfRows(R_train, MaxCountOfNeighbors,StrongSimilarityThreshold,
+                Metric.GetPearsonOfRows(R_train, MaxCountOfNeighbors,StrongSimilarityThreshold,
                     out UserSimilaritiesOfRating);
                 if (saveLoadedData) 
                 {
@@ -154,7 +157,7 @@ namespace RecSys.Experiments
 
                 Utils.StartTimer();
                 Utils.PrintHeading("Compute item-item similarities (rating based)");
-                Metric.GetCosineOfColumns(R_train, MaxCountOfNeighbors, StrongSimilarityThreshold, 
+                Metric.GetPearsonOfColumns(R_train, MaxCountOfNeighbors, StrongSimilarityThreshold, 
                     out ItemSimilaritiesOfRating, out StrongSimilarityIndicatorsByItemRating);
                 if (saveLoadedData)
                 {
@@ -218,7 +221,7 @@ namespace RecSys.Experiments
                 Utils.StartTimer();
                 Utils.PrintHeading("Compute item-item similarities (Pref based)");
                 DataMatrix PR_userwise_preferences = new DataMatrix(PR_train.GetPositionMatrix());
-                Metric.GetCosineOfColumns(PR_userwise_preferences, MaxCountOfNeighbors, StrongSimilarityThreshold,
+                Metric.GetPearsonOfColumns(PR_userwise_preferences, MaxCountOfNeighbors, StrongSimilarityThreshold,
                     out ItemSimilaritiesOfPref, out StrongSimilarityIndicatorsByItemPref);
                 Utils.StopTimer();
 
@@ -307,6 +310,10 @@ namespace RecSys.Experiments
             {
                 log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
             }
+            for (int n = 1; n <= topN; n++)
+            {
+                log.AppendLine(Utils.PrintValue("MAP@" + n, MAP.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
+            }
 
             return log.ToString();
         }
@@ -341,6 +348,10 @@ namespace RecSys.Experiments
                 {
                     log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
                 }
+                for (int n = 1; n <= topN; n++)
+                {
+                    log.AppendLine(Utils.PrintValue("MAP@" + n, MAP.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
+                }
             }
 
             return log.ToString();
@@ -348,7 +359,7 @@ namespace RecSys.Experiments
         #endregion
 
         #region UserKNN
-        public string RunUserKNN(int neighborCount, int topN = 0)
+        public string RunUserKNN(int topN = 0)
         {
             if (!ReadyForNumerical) { GetReadyForNumerical(); }
             StringBuilder log = new StringBuilder();
@@ -356,7 +367,7 @@ namespace RecSys.Experiments
 
             // Prediction
             Utils.StartTimer();
-            DataMatrix R_predicted = Numerical.UserKNN.PredictRatings(R_train, R_unknown, UserSimilaritiesOfRating, neighborCount);
+            DataMatrix R_predicted = Numerical.UserKNN.PredictRatings(R_train, R_unknown, UserSimilaritiesOfRating, MaxCountOfNeighbors);
             log.AppendLine(Utils.StopTimer());
 
             // Numerical Evaluation
@@ -370,6 +381,10 @@ namespace RecSys.Experiments
                 for (int n = 1; n <= topN; n++)
                 {
                     Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+                }
+                for (int n = 1; n <= topN; n++)
+                {
+                    log.AppendLine(Utils.PrintValue("MAP@" + n, MAP.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
                 }
             }
 
@@ -397,6 +412,10 @@ namespace RecSys.Experiments
             {
                 Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
             }
+            for (int n = 1; n <= topN; n++)
+            {
+                log.AppendLine(Utils.PrintValue("MAP@" + n, MAP.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
+            }
 
             return log.ToString();
         }
@@ -419,6 +438,10 @@ namespace RecSys.Experiments
             for (int n = 1; n <= topN; n++)
             {
                 Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000"));
+            }
+            for (int n = 1; n <= topN; n++)
+            {
+                log.AppendLine(Utils.PrintValue("MAP@" + n, MAP.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
             }
 
             return log.ToString();
@@ -462,7 +485,6 @@ namespace RecSys.Experiments
 
             // Evaluation
             var topNItemsByUser_expectations = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_expectations, topN);
-            var topNItemsByUser_mostlikely = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_mostlikely, topN);
             for (int n = 1; n <= topN; n++)
             {
                 log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser,
@@ -470,8 +492,7 @@ namespace RecSys.Experiments
             }
             for (int n = 1; n <= topN; n++)
             {
-                log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser,
-                    topNItemsByUser_mostlikely, n).ToString("0.0000")));
+                log.AppendLine(Utils.PrintValue("MAP@" + n, MAP.Evaluate(RelevantItemsByUser, topNItemsByUser_expectations, n).ToString("0.0000")));
             }
 
             return log.ToString();
@@ -515,14 +536,13 @@ namespace RecSys.Experiments
             if (topN != 0)
             {
                 var topNItemsByUser_expectations = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_expectations, topN);
-                var topNItemsByUser_mostlikely = ItemRecommendationCore.GetTopNItemsByUser(R_predicted_mostlikely, topN);
                 for (int n = 1; n <= topN; n++)
                 {
                     log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser_expectations, n).ToString("0.0000")));
                 }
                 for (int n = 1; n <= topN; n++)
                 {
-                    log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser_mostlikely, n).ToString("0.0000")));
+                    log.AppendLine(Utils.PrintValue("MAP@" + n, MAP.Evaluate(RelevantItemsByUser, topNItemsByUser_expectations, n).ToString("0.0000")));
                 }
             }
 
@@ -578,6 +598,10 @@ namespace RecSys.Experiments
             {
                 log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
             }
+            for (int n = 1; n <= topN; n++)
+            {
+                log.AppendLine(Utils.PrintValue("MAP@" + n, MAP.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
+            }
 
             // Save OMFDistribution to file
             if (!File.Exists(GetDataFileName("PrefOMF_")))
@@ -628,6 +652,10 @@ namespace RecSys.Experiments
                 for (int n = 1; n <= topN; n++)
                 {
                     log.AppendLine(Utils.PrintValue("NCDG@" + n, NCDG.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
+                }
+                for (int n = 1; n <= topN; n++)
+                {
+                    log.AppendLine(Utils.PrintValue("MAP@" + n, MAP.Evaluate(RelevantItemsByUser, topNItemsByUser, n).ToString("0.0000")));
                 }
             }
 

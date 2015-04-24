@@ -99,6 +99,7 @@
     <Compile Include="Core\SimilarityData.cs" />
     <Compile Include="Core\SpecialFunctions.cs" />
     <Compile Include="Evaluation\MAE.cs" />
+    <Compile Include="Evaluation\MAP.cs" />
     <Compile Include="Evaluation\NCDG.cs" />
     <Compile Include="Evaluation\RMSE.cs" />
     <Compile Include="Experiments\CIKMExpDesign.cs" />

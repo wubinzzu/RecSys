@@ -50,7 +50,12 @@ namespace RecSys.Numerical
 
                 Utils.PrintEpoch("Predicting user/total", indexOfUser, R_train.UserCount);
 
-                var topKNeighbors = neighborsByUser[indexOfUser];
+                // Note that there are more than K neighbors in the list (sorted by similarity)
+                // we will use the top-K neighbors WHO HAVE RATED THE ITEM
+                // For example we have 200 top neighbors, and we hope there are
+                // K neighbors in the list have rated the item. We can't keep
+                // everyone in the neighbor list because there are too many for large data sets
+                var topNeighborsOfUser = neighborsByUser[indexOfUser];
                 //Dictionary<int, double> topKNeighbors = KNNCore.GetTopKNeighborsByUser(userSimilarities, indexOfUser, K);
 
                 double meanOfUser = meanByUser[indexOfUser];
@@ -61,12 +66,17 @@ namespace RecSys.Numerical
                     int itemIndex = unknownRating.Item1;
                     double prediction;
 
+                    // TODO: we actually should use the Top-K neighbors
+                    // that have rated this item, otherwise we may have
+                    // only a few neighbors rated this item
+
                     // Compute the average rating on item iid given 
                     // by the top K neighbors. Each rating is offsetted by
                     // the neighbor's average and weighted by the similarity
                     double weightedSum = 0;
                     double weightSum = 0;
-                    foreach (KeyValuePair<int, double> neighbor in topKNeighbors)
+                    int currentTopKCount = 0;
+                    foreach (KeyValuePair<int, double> neighbor in topNeighborsOfUser)
                     {
                         int neighborIndex = neighbor.Key;
                         double similarityOfNeighbor = neighbor.Value;
@@ -77,6 +87,8 @@ namespace RecSys.Numerical
                         {
                             weightSum += similarityOfNeighbor;
                             weightedSum += (itemRatingOfNeighbor - meanByUser[neighborIndex]) * similarityOfNeighbor;
+                            currentTopKCount++;
+                            if (currentTopKCount >= K) { break; }   // Stop when we have seen K neighbors
                         }
                     }
                     // A zero weightedSum means this is a cold item and global mean will be assigned by default

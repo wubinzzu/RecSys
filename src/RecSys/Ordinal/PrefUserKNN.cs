@@ -45,8 +45,12 @@ namespace RecSys.Ordinal
 
                 Utils.PrintEpoch("Predicting user/total", indexOfUser, PR_train.UserCount);
 
-                //Dictionary<int, double> topKNeighbors = KNNCore.GetTopKNeighborsByUser(userSimilaritiesOfPref, indexOfUser, K);
-                var topKNeighbors = neighborsByUser[indexOfUser];
+                // Note that there are more than K neighbors in the list (sorted by similarity)
+                // we will use the top-K neighbors WHO HAVE RATED THE ITEM
+                // For example we have 200 top neighbors, and we hope there are
+                // K neighbors in the list have rated the item. We can't keep
+                // everyone in the neighbor list because there are too many for large data sets
+                var topNeighborsOfUser = neighborsByUser[indexOfUser];
 
                 double meanOfUser = meanByUser[indexOfUser];
 
@@ -59,8 +63,8 @@ namespace RecSys.Ordinal
                     // by combining neighbors' positions on this item
                     double weightedSum = 0;
                     double weightSum = 0;
-                    int itemSeenCount = 0;
-                    foreach (KeyValuePair<int, double> neighbor in topKNeighbors)
+                    int currentTopKCount = 0;
+                    foreach (KeyValuePair<int, double> neighbor in topNeighborsOfUser)
                     {
                         int indexOfNeighbor = neighbor.Key;
                         double similarityOfNeighbor = neighbor.Value;
@@ -78,12 +82,16 @@ namespace RecSys.Ordinal
                             }
                             weightSum += similarityOfNeighbor;
                             weightedSum += (itemPositionOfNeighbor - meanByUser[indexOfNeighbor]) * similarityOfNeighbor;
-                            itemSeenCount++;
+                            currentTopKCount++;
+                            if(currentTopKCount>= K)
+                            {
+                                break;
+                            }
                         }
                     }
 
                     // If any neighbor has seen this item
-                    if (itemSeenCount != 0)
+                    if (currentTopKCount != 0)
                     {
                         // TODO: Add user mean may improve the performance
                         R_predicted[indexOfUser, indexOfUnknownItem] = meanOfUser + weightedSum / weightSum;

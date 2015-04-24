@@ -18,11 +18,11 @@ namespace RecSys.Core
     {
         #region Public interfaces to compute similarities of matrix/preference relations
         public static void GetPearsonOfRows(DataMatrix R, int maxCountOfNeighbors,
-            double strongSimilarityThreshold, out SimilarityData neighborsByObject,
-            out HashSet<Tuple<int, int>> strongSimilarityIndicators)
+            double strongSimilarityThreshold, out SimilarityData neighborsByObject)
         {
+            HashSet<Tuple<int, int>> foo;
             ComputeSimilarities(R.Matrix, SimilarityMetric.PearsonRating, maxCountOfNeighbors,
-                strongSimilarityThreshold, out neighborsByObject, out strongSimilarityIndicators);
+                strongSimilarityThreshold, out neighborsByObject, out foo);
         }
         public static void GetCosineOfRows(DataMatrix R, int maxCountOfNeighbors, 
             double strongSimilarityThreshold, out SimilarityData neighborsByObject)
@@ -37,6 +37,21 @@ namespace RecSys.Core
         {
             ComputeSimilarities(R.Matrix.Transpose(), SimilarityMetric.PearsonRating, maxCountOfNeighbors,
                 strongSimilarityThreshold, out neighborsByObject, out strongSimilarityIndicators);
+
+            // Debug
+            for(int i = 0; i < R.ItemCount&&i<100; i++)
+            {
+                for (int j = 0; j < R.ItemCount&&j<100; j++)
+                {
+                    if (i == j) continue;
+                    double corr_ij = Correlation.Pearson((SparseVector)R.Matrix.Column(i),(SparseVector)R.Matrix.Column(j));
+                    if(corr_ij>strongSimilarityThreshold)
+                    {
+                        Debug.Assert(strongSimilarityIndicators.Contains(new Tuple<int, int>(i, j)));
+                        Debug.Assert(strongSimilarityIndicators.Contains(new Tuple<int, int>(j, i)));
+                    }
+                }
+            }
         }
         public static void GetCosineOfColumns(DataMatrix R, int maxCountOfNeighbors,
             double strongSimilarityThreshold, out SimilarityData neighborsByObject,
@@ -59,7 +74,7 @@ namespace RecSys.Core
         #region Private implementations
         private enum SimilarityMetric { PearsonPrefRelations, PearsonRating, CosinePrefRelations, CosineRating };
 
-        #region Compute topK neighbors of each row
+        #region Compute similarities
         private static void ComputeSimilarities(Matrix<double> R, 
             Metric.SimilarityMetric similarityMetric, int maxCountOfNeighbors,
             double minSimilarityThreshold,  out SimilarityData neighborsByObject,
@@ -92,21 +107,26 @@ namespace RecSys.Core
                         switch (similarityMetric)
                         {
                             case Metric.SimilarityMetric.CosineRating:
-                                double cosine = Metric.CosineR(rows[indexOfRow],rows[indexOfNeighbor]);
+                                // TODO: make a note that it really matters to make it sparse, it computes differently!
+                                double cosine = Metric.CosineR((SparseVector)rows[indexOfRow], (SparseVector)rows[indexOfNeighbor]);
                                     if(cosine >  minSimilarityThreshold)
                                     {
                                         strongSimilarityIndocatorCache.Add(new Tuple<int, int>(indexOfRow, indexOfNeighbor));
+                                        strongSimilarityIndocatorCache.Add(new Tuple<int, int>(indexOfNeighbor, indexOfRow));
                                     }
                                     similarityCache[new Tuple<int, int>(indexOfRow, indexOfNeighbor)] = cosine;
+                                    similarityCache[new Tuple<int, int>(indexOfNeighbor, indexOfRow)] = cosine;
 
                                 break;
                             case Metric.SimilarityMetric.PearsonRating:
-                                double pearson = Metric.PearsonR(rows[indexOfRow], rows[indexOfNeighbor]);
+                                double pearson = Metric.PearsonR((SparseVector)rows[indexOfRow], (SparseVector)rows[indexOfNeighbor]);
                                     if (pearson> minSimilarityThreshold)
                                     {
                                         strongSimilarityIndocatorCache.Add(new Tuple<int, int>(indexOfRow, indexOfNeighbor));
+                                        strongSimilarityIndocatorCache.Add(new Tuple<int, int>(indexOfNeighbor, indexOfRow));
                                     }
                                     similarityCache[new Tuple<int, int>(indexOfRow, indexOfNeighbor)] = pearson;
+                                    similarityCache[new Tuple<int, int>(indexOfNeighbor, indexOfRow)] = pearson;
 
                                 break;
                         }
@@ -118,7 +138,6 @@ namespace RecSys.Core
                     foreach(var entry in similarityCache)
                     {
                         neighborsByObject_out.AddSimilarityData(entry.Key.Item1, entry.Key.Item2, entry.Value);
-                        neighborsByObject_out.AddSimilarityData(entry.Key.Item2, entry.Key.Item1, entry.Value);
                     }
                     strongSimilarityIndicators_out.AddRange(strongSimilarityIndocatorCache);
                 }
@@ -185,7 +204,7 @@ namespace RecSys.Core
         #endregion
 
         #region Rating Pearson
-        private static double PearsonR(Vector<double> Vector_a, Vector<double> Vector_b)
+        private static double PearsonR(SparseVector Vector_a, SparseVector Vector_b)
         {
             double correlation = Correlation.Pearson(Vector_a,Vector_b);
             if (double.IsNaN(correlation))
@@ -200,7 +219,7 @@ namespace RecSys.Core
         #endregion
 
         #region Rating Cosine
-        private static double CosineR(Vector<double> Vector_a, Vector<double> Vector_b)
+        private static double CosineR(SparseVector Vector_a, SparseVector Vector_b)
         {
             return Vector_a.DotProduct(Vector_b) / (Vector_a.L2Norm() * Vector_b.L2Norm());
             //return Distance.Cosine(R.Row(a).ToArray(), R.Row(b).ToArray());

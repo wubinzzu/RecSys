@@ -1,10 +1,13 @@
-﻿using MathNet.Numerics.LinearAlgebra;
+﻿using MathNet.Numerics.Distributions;
+using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
 using RecSys.Core;
 using RecSys.Numerical;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace RecSys.Ordinal
 {
@@ -20,12 +23,21 @@ namespace RecSys.Ordinal
            int maxEpoch, double learnRate, double regularizationOfUser, double regularizationOfItem, int factorCount)
         {
             // Latent features
-            Matrix<double> P;
-            Matrix<double> Q;
+            List<Vector<double>> P;
+            List<Vector<double>> Q;
 
             LearnLatentFeatures(PR_train, maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount, out P, out Q);
 
-            DataMatrix R_predicted = new DataMatrix(R_unknown.Matrix.PointwiseMultiply(P.Multiply(Q)));
+            List<Tuple<int, int, double>> R_predicted_cache = new List<Tuple<int, int, double>>();
+            foreach(var data in R_unknown.Matrix.EnumerateIndexed(Zeros.AllowSkip))
+            {
+                int indexOfUser = data.Item1;
+                int indexOfItem = data.Item2;
+                R_predicted_cache.Add(new Tuple<int, int, double>(indexOfUser, indexOfItem, P[indexOfUser].DotProduct(Q[indexOfItem])));
+            }
+
+            DataMatrix R_predicted = new DataMatrix(SparseMatrix.OfIndexed(R_unknown.UserCount,R_unknown.ItemCount,R_predicted_cache));
+                //new DataMatrix(R_unknown.Matrix.PointwiseMultiply(P.Multiply(Q)));
             // TODO: should we do this? should we put it into [0,1]??? Seems zero entries are also converted into 0.5!Normalize the result
             //R_predicted.Matrix.MapInplace(x => RecSys.Core.SpecialFunctions.InverseLogit(x), Zeros.AllowSkip);
             return R_predicted;
@@ -35,8 +47,10 @@ namespace RecSys.Ordinal
             int maxEpoch, double learnRate, double regularizationOfUser, double regularizationOfItem, int factorCount)
         {
             // Latent features
-            Matrix<double> P;
-            Matrix<double> Q;
+            List<Vector<double>> P;
+            List<Vector<double>> Q;
+            //Matrix<double> P;
+            //Matrix<double> Q;
 
             LearnLatentFeatures(PR_train, maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount, out P, out Q);
 
@@ -54,7 +68,7 @@ namespace RecSys.Ordinal
                 {
                     int indexOfItem_i = unknownPreference.Item1;
                     int indexOfItem_j = unknownPreference.Item2;
-                    double estimate_uij = P.Row(indexOfUser).DotProduct(Q.Column(indexOfItem_i) - Q.Column(indexOfItem_j));   // Eq. 2
+                    double estimate_uij = P[indexOfUser].DotProduct(Q[indexOfItem_i] - Q[indexOfItem_j]);   // Eq. 2
                     double normalized_estimate_uij = Core.SpecialFunctions.InverseLogit(estimate_uij);   // pi_uij in paper
                     predictedPreferencesOfUser[indexOfItem_i, indexOfItem_j] = normalized_estimate_uij;
                 }
@@ -69,19 +83,30 @@ namespace RecSys.Ordinal
         }
 
         private static void LearnLatentFeatures(PrefRelations PR_train, int maxEpoch, 
-            double learnRate, double regularizationOfUser, double regularizationOfItem, 
-            int factorCount, out Matrix<double> P, out Matrix<double> Q)
+            double learnRate, double regularizationOfUser, double regularizationOfItem,
+            int factorCount, out List<Vector<double>> P, out List<Vector<double>> Q)
         {
             //regularizationOfUser = 0;
             //regularizationOfItem = 0;
             int userCount = PR_train.UserCount;
             int itemCount = PR_train.ItemCount;
-            int prefCount = PR_train.GetTotalPrefRelationsCount();
 
             // User latent vectors with default seed
-            P = Utils.CreateRandomMatrixFromUniform(userCount, factorCount, 0, 0.1, Config.Seed);
+            P = new List<Vector<double>>();
+            Q = new List<Vector<double>>();
+            ContinuousUniform uniformDistribution = new ContinuousUniform(0, 0.1, new Random(Config.Seed));
+            //var p = Utils.CreateRandomMatrixFromUniform(userCount, factorCount, 0, 0.1, Config.Seed);
+            for (int i = 0; i < userCount; i++ )
+            {
+                P.Add(DenseVector.CreateRandom(factorCount,uniformDistribution));
+            }
+            for (int i = 0; i < itemCount; i++)
+            {
+                Q.Add(DenseVector.CreateRandom(factorCount, uniformDistribution));
+            }
+             //   P = Utils.CreateRandomMatrixFromUniform(userCount, factorCount, 0, 0.1, Config.Seed);
             // Item latent vectors with a different seed
-            Q = Utils.CreateRandomMatrixFromUniform(factorCount, itemCount, 0, 0.1, Config.Seed + 1);
+            //Q = Utils.CreateRandomMatrixFromUniform(factorCount, itemCount, 0, 0.1, Config.Seed + 1);
 
             // SGD
             double previousErrorSum = long.MaxValue;
@@ -112,43 +137,50 @@ namespace RecSys.Ordinal
                         else if (entry.Item3 == Config.Preferences.EquallyPreferred){prefRelation_uij = 0.5;}
                         else if (entry.Item3 == Config.Preferences.LessPreferred){prefRelation_uij = 0.0;}
                         else{Debug.Assert(true, "Should not be here.");}
-
+                        
                         // TODO: Maybe it can be faster to do two dot products to remove the substraction (lose sparse  property I think)
-                        double estimate_uij = P.Row(indexOfUser).DotProduct(Q.Column(indexOfItem_i) - Q.Column(indexOfItem_j));   // Eq. 2
+                        double PQ_ui = P[indexOfUser].DotProduct(Q[indexOfItem_i]);
+                        double PQ_uj = P[indexOfUser].DotProduct(Q[indexOfItem_j]);
+                        double estimate_uij = PQ_ui - PQ_uj;
+                        //double estimate_uij = P.Row(indexOfUser).DotProduct(Q.Column(indexOfItem_i) - Q.Column(indexOfItem_j));   // Eq. 2
+                        
+                        
                         double exp_estimate_uij = Math.Exp(estimate_uij);   // enumerator in Eq. 2
                         double normalized_estimate_uij = SpecialFunctions.InverseLogit(estimate_uij);   // pi_uij in paper
-
+                        
                         //Debug.Assert(prefRelation_uij >= 0 && prefRelation_uij <= 1);
                         //Debug.Assert(normalized_estimate_uij >= 0 && normalized_estimate_uij <= 1);
 
 
-                        // TODO: try square the e_uij
-                        // I think it should be squared, when sqaured and set regularization to 0,
-                        // the updated feature vectors actually increase the error!
-                        // where it won't happen without square and also for NMF
-                        // squared is like  always gradient in one direction
+                        // The error term in Eq. 6-9. Note that the author's paper incorrectly puts a power on the error
                         double e_uij = prefRelation_uij - normalized_estimate_uij;
                         //double e_uij = Math.Pow(prefRelation_uij - normalized_estimate_uij, 2) ;  // from Eq. 3&6
                         double e_uij_derivative = (e_uij * normalized_estimate_uij) / (1 + exp_estimate_uij);
 
                         // Update feature vectors
-                        Vector<double> P_u = P.Row(indexOfUser);
-                        Vector<double> Q_i = Q.Column(indexOfItem_i);
-                        Vector<double> Q_j = Q.Column(indexOfItem_j);
+                        Vector<double> P_u = P[indexOfUser];
+                        Vector<double> Q_i = Q[indexOfItem_i];
+                        Vector<double> Q_j = Q[indexOfItem_j];
                         Vector<double> Q_ij = Q_i - Q_j;
-                        // Eq. 7
-                        Vector<double> P_u_updated = P_u + (Q_ij.Multiply(e_uij_derivative) + P_u.Multiply(regularizationOfUser)).Multiply(learnRate);
-                        P.SetRow(indexOfUser, P_u_updated);
+   
+                        P[indexOfUser] += Q_ij.Multiply(e_uij_derivative * learnRate) - P_u.Multiply(regularizationOfUser * learnRate);
 
-                        // Eq. 8
-                        Vector<double> Q_i_updated = Q_i + (P_u.Multiply(e_uij_derivative) + Q_i.Multiply(regularizationOfItem)).Multiply(learnRate);
-                        Q.SetColumn(indexOfItem_i, Q_i_updated);
+                        // Eq. 7, note that the author's paper incorrectly writes + regularization 
+                        //Vector<double> P_u_updated = P_u + (Q_ij.Multiply(e_uij_derivative) - P_u.Multiply(regularizationOfUser)).Multiply(learnRate);
+                        //P[indexOfUser] = P_u_updated;
+                        Vector<double> P_u_derivative = P_u.Multiply(e_uij_derivative * learnRate);
+                        // Eq. 8, note that the author's paper incorrectly writes + regularization 
+                        //Vector<double> Q_i_updated = Q_i + (P_u_derivative - Q_i.Multiply(regularizationOfItem * learnRate));
+                        //Q[indexOfItem_i] = Q_i_updated;
 
-                        // Eq. 9, note that changing the minus to plus will increase error
-                        Vector<double> Q_j_updated = Q_j - (P_u.Multiply(e_uij_derivative) + Q_j.Multiply(regularizationOfItem)).Multiply(learnRate);
-                        Q.SetColumn(indexOfItem_j, Q_j_updated);
+                        Q[indexOfItem_i] += (P_u_derivative - Q_i.Multiply(regularizationOfItem * learnRate));
 
-                        double estimate_uij_updated = P.Row(indexOfUser).DotProduct(Q.Column(indexOfItem_i) - Q.Column(indexOfItem_j));   // Eq. 2
+                        // Eq. 9, note that the author's paper incorrectly writes + regularization 
+                        //Vector<double> Q_j_updated = Q_j - (P_u_derivative - Q_j.Multiply(regularizationOfItem * learnRate));
+                        //Q[indexOfItem_j] =Q_j_updated;
+                        Q[indexOfItem_j] -= (P_u_derivative - Q_j.Multiply(regularizationOfItem * learnRate));
+
+                        double estimate_uij_updated = P[indexOfUser].DotProduct(Q[indexOfItem_i] - Q[indexOfItem_j]);   // Eq. 2
                         double exp_estimate_uij_updated = Math.Exp(estimate_uij_updated);   // enumerator in Eq. 2
                         double normalized_estimate_uij_updated = SpecialFunctions.InverseLogit(estimate_uij_updated);   // pi_uij in paper
                         //double e_uij_updated = Math.Pow(prefRelation_uij - normalized_estimate_uij_updated, 2);  // from Eq. 3&6
@@ -203,7 +235,7 @@ namespace RecSys.Ordinal
                             else { Debug.Assert(true, "Should not be here."); }
 
                             // TODO: Maybe it can be faster to do two dot products to remove the substraction (lose sparse  property I think)
-                            double estimate_uij = P.Row(indexOfUser).DotProduct(Q.Column(indexOfItem_i) - Q.Column(indexOfItem_j));   // Eq. 2
+                            double estimate_uij = P[indexOfUser].DotProduct(Q[indexOfItem_i] - Q[indexOfItem_j]);   // Eq. 2
                             double normalized_estimate_uij = SpecialFunctions.InverseLogit(estimate_uij);   // Eq. 2
                             eSum += Math.Pow((prefRelation_uij - normalized_estimate_uij), 2);  // Sum the error of this preference relation
 
@@ -215,8 +247,8 @@ namespace RecSys.Ordinal
                             // }
                         }
                     }
-                    double regularizationPenaty = regularizationOfUser * P.SquaredSum();
-                    regularizationPenaty += regularizationOfItem * Q.SquaredSum();
+                    double regularizationPenaty = regularizationOfUser * P.Sum(x=>x.SquaredSum());
+                    regularizationPenaty += regularizationOfItem * Q.Sum(x => x.SquaredSum());
                     eSum += regularizationPenaty;
 
                     // Record the current error
