@@ -43,7 +43,93 @@ namespace RecSys.Ordinal
             return R_predicted;
         }
 
-        public static PrefRelations PredictPrefRelations(PrefRelations PR_train, PrefRelations PR_unknown,
+        // We need to directly compute the position matrix because the PR would be too big to fit into memory
+        public static SparseMatrix PredictPrefRelations(PrefRelations PR_train, Dictionary<int, List<int>> PR_unknown,
+    int maxEpoch, double learnRate, double regularizationOfUser, double regularizationOfItem, int factorCount, List<double> quantizer)
+        {
+            // Latent features
+            List<Vector<double>> P;
+            List<Vector<double>> Q;
+            //Matrix<double> P;
+            //Matrix<double> Q;
+
+
+            //SparseMatrix positionMatrix = new SparseMatrix(PR_train.UserCount, PR_train.ItemCount);
+            Vector<double>[] positionMatrixCache = new Vector<double>[PR_train.UserCount];
+            LearnLatentFeatures(PR_train, maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount, out P, out Q);
+
+            //PrefRelations PR_predicted = new PrefRelations(PR_train.ItemCount);
+
+            Object lockMe = new Object();
+            Parallel.ForEach(PR_unknown, user =>
+            {
+                Utils.PrintEpoch("Epoch", user.Key, PR_unknown.Count);
+                int indexOfUser = user.Key;
+                List<int> unknownItemsOfUser = user.Value;
+                //SparseMatrix predictedPreferencesOfUser = new SparseMatrix(PR_train.ItemCount, PR_train.ItemCount);
+                List<Tuple<int, int, double>> predictedPreferencesOfUserCache = new List<Tuple<int, int, double>>();
+
+                // Predict each unknown preference
+                foreach (int indexOfItem_i in unknownItemsOfUser)
+                {
+                    foreach (int indexOfItem_j in unknownItemsOfUser)
+                    {
+                        if (indexOfItem_i == indexOfItem_j) continue;
+                        double estimate_uij = P[indexOfUser].DotProduct(Q[indexOfItem_i] - Q[indexOfItem_j]);   // Eq. 2
+                        double normalized_estimate_uij = Core.SpecialFunctions.InverseLogit(estimate_uij);   // pi_uij in paper
+                        predictedPreferencesOfUserCache.Add(new Tuple<int, int, double>(indexOfItem_i, indexOfItem_j, normalized_estimate_uij));
+                        //predictedPreferencesOfUser[indexOfItem_i, indexOfItem_j] = normalized_estimate_uij;
+                    }
+                }
+
+                // Note: it shows better performance to not quantize here
+                /*
+                DataMatrix predictedPreferencesOfUser = 
+                    new DataMatrix(SparseMatrix.OfIndexed(PR_train.ItemCount, PR_train.ItemCount, predictedPreferencesOfUserCache));
+                predictedPreferencesOfUser.Quantization(0, 1.0, quantizer);    
+                Vector<double> positionsOfUser = PrefRelations.PreferencesToPositions(predictedPreferencesOfUser.Matrix);
+                */
+                
+                double[] positionByItem = new double[PR_train.ItemCount];
+                foreach(var triplet in predictedPreferencesOfUserCache)
+                {
+                    int indexOfItem_i = triplet.Item1;
+                    int indexOfItem_j = triplet.Item2;
+                    double preference = triplet.Item3;
+                    if(preference > 0.5)
+                    {
+                        positionByItem[indexOfItem_i]++;
+                        positionByItem[indexOfItem_j]--;
+                    }
+                    else if(preference < 0.5)
+                    {
+                        positionByItem[indexOfItem_i]--;
+                        positionByItem[indexOfItem_j]++;
+                    }
+                }
+
+                int normalizationTerm = unknownItemsOfUser.Count * 2 - 2;
+                for (int i = 0; i < positionByItem.Length; i ++ )
+                {
+                    if (positionByItem[i]!=0)
+                        positionByItem[i] /= normalizationTerm;
+                }
+                
+                Vector<double> positionsOfUser = SparseVector.OfEnumerable(positionByItem);
+                
+                lock (lockMe)
+                {
+                    positionMatrixCache[indexOfUser] = positionsOfUser;
+                    //positionMatrix.SetRow(indexOfUser, positionsOfUser);
+                    //PR_predicted[indexOfUser] = predictedPreferencesOfUser;
+                }
+            });
+
+            return SparseMatrix.OfRowVectors(positionMatrixCache);
+        }
+
+
+        public static PrefRelations PredictPrefRelations(PrefRelations PR_train, SparseMatrix PR_unknown,
             int maxEpoch, double learnRate, double regularizationOfUser, double regularizationOfItem, int factorCount)
         {
             // Latent features
@@ -54,20 +140,20 @@ namespace RecSys.Ordinal
 
             LearnLatentFeatures(PR_train, maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount, out P, out Q);
 
-            PrefRelations PR_predicted = new PrefRelations(PR_unknown.ItemCount);
+            PrefRelations PR_predicted = new PrefRelations(PR_train.ItemCount);
 
             Object lockMe = new Object();
-            Parallel.ForEach(PR_unknown.PreferenceRelationsByUser, pair =>
+            Parallel.ForEach(PR_unknown.EnumerateRowsIndexed(), user =>
             {
-                int indexOfUser = pair.Key;
-                SparseMatrix unknownPreferencesOfUser = pair.Value;
-                SparseMatrix predictedPreferencesOfUser = new SparseMatrix(unknownPreferencesOfUser.RowCount, unknownPreferencesOfUser.ColumnCount);
+                int indexOfUser = user.Item1;
+                Vector<double> unknownPreferencesOfUser = user.Item2;
+                SparseMatrix predictedPreferencesOfUser = new SparseMatrix(PR_train.ItemCount, PR_train.ItemCount);
 
                 // Predict each unknown preference
                 foreach(var unknownPreference in unknownPreferencesOfUser.EnumerateIndexed(Zeros.AllowSkip))
                 {
                     int indexOfItem_i = unknownPreference.Item1;
-                    int indexOfItem_j = unknownPreference.Item2;
+                    int indexOfItem_j = (int)unknownPreference.Item2;
                     double estimate_uij = P[indexOfUser].DotProduct(Q[indexOfItem_i] - Q[indexOfItem_j]);   // Eq. 2
                     double normalized_estimate_uij = Core.SpecialFunctions.InverseLogit(estimate_uij);   // pi_uij in paper
                     predictedPreferencesOfUser[indexOfItem_i, indexOfItem_j] = normalized_estimate_uij;

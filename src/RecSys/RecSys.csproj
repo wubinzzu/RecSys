@@ -114,7 +114,6 @@
     <Compile Include="Numerical\UserKNN.cs" />
     <Compile Include="Numerical\NMF.cs" />
     <Compile Include="Ordinal\PrefUserKNN.cs" />
-    <Compile Include="Evaluation\Precision.cs" />
     <Compile Include="Core\Utils.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

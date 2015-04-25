@@ -1,4 +1,5 @@
 ﻿using MathNet.Numerics.LinearAlgebra;
+using MathNet.Numerics.LinearAlgebra.Double;
 using RecSys.Core;
 using RecSys.Evaluation;
 using RecSys.Numerical;
@@ -45,6 +46,7 @@ namespace RecSys.Experiments
         public string DataSetFile;
         public string DataSetName;
         public int MinCountOfRatings;
+        public int MaxCountOfRatings;
         public int CountOfRatingsForTrain;
         public bool ShuffleData;
         public int Seed;
@@ -57,7 +59,7 @@ namespace RecSys.Experiments
         #endregion
 
         #region Constructor
-        public ExperimentEngine(string dataSetFile, int minCountOfRatings,
+        public ExperimentEngine(string dataSetFile, int minCountOfRatings, int maxCountOfRatings,
             int countOfRatingsForTrain, bool shuffleData, int seed, double relevantItemCriteria,
             int maxCountOfNeighbors, double strongSimilarityThreshold)
         {
@@ -66,6 +68,7 @@ namespace RecSys.Experiments
             DataSetName = dataSetFile;
             DataSetFile = PathToDataSets + dataSetFile;
             MinCountOfRatings = minCountOfRatings;
+            MaxCountOfRatings = maxCountOfRatings;
             CountOfRatingsForTrain = countOfRatingsForTrain;
             ShuffleData = shuffleData;
             Seed = seed;
@@ -84,12 +87,13 @@ namespace RecSys.Experiments
         private string GetDataFileName(string variableName)
         {
             if (!Directory.Exists(PathToVariables)) { Directory.CreateDirectory(PathToVariables); }
-            string fileName = string.Format("{0}{1}_{2}_S{3}_MCR{4}_CRT{5}_MCN{6}_SST{7}.var",
+            string fileName = string.Format("{0}{1}_{2}_S{3}_MinCR{4}_MaxCR{5}_CRT{6}_MaxCN{7}_SST{8}.var",
                 PathToVariables,
                 variableName,
                 DataSetName,
                 Seed,
                 MinCountOfRatings,
+                MaxCountOfRatings,
                 CountOfRatingsForTrain,
                 MaxCountOfNeighbors,
                 StrongSimilarityThreshold.ToString("0.00"));
@@ -108,7 +112,7 @@ namespace RecSys.Experiments
 
             log.AppendLine(Utils.PrintHeading("Create R_train/R_test sets from " + DataSetFile));
             Utils.LoadMovieLensSplitByCount(DataSetFile, out R_train,
-                out R_test, MinCountOfRatings, CountOfRatingsForTrain, ShuffleData, Seed);
+                out R_test, MinCountOfRatings, MaxCountOfRatings, CountOfRatingsForTrain, ShuffleData, Seed);
 
             Console.WriteLine(R_train.DatasetBrief("Train set"));
             Console.WriteLine(R_test.DatasetBrief("Test set"));
@@ -449,7 +453,7 @@ namespace RecSys.Experiments
         #endregion
 
         #region PrefMRF: PrefNMF based ORF
-        public string RunPrefMRF(double regularization, double learnRate, double minSimilarity, int maxEpoch, List<double> quantizer,
+        public string RunPrefMRF(double regularization, double learnRate, int maxEpoch, List<double> quantizer,
             int topN = 10)
         {
             // Load OMFDistribution from file
@@ -561,21 +565,56 @@ namespace RecSys.Experiments
             // =============PrefNMF prediction on Train+Unknown============
             // Get ratings from scorer, for both train and test
             // R_all contains indexes of all ratings both train and test
-            DataMatrix R_all = new DataMatrix(R_unknown.UserCount, R_unknown.ItemCount);
-            R_all.MergeNonOverlap(R_unknown);
-            R_all.MergeNonOverlap(R_train.IndexesOfNonZeroElements());
-            PrefRelations PR_unknown = PrefRelations.CreateDiscrete(R_all);
+           // DataMatrix R_all = new DataMatrix(R_unknown.UserCount, R_unknown.ItemCount);
+           // R_all.MergeNonOverlap(R_unknown);
+            //R_all.MergeNonOverlap(R_train.IndexesOfNonZeroElements());
+            //PrefRelations PR_unknown = PrefRelations.CreateDiscrete(R_all);
+
+            // R_all is far too slow, change the data structure
+            //Dictionary<int, List<Tuple<int, int>>> PR_unknown = new Dictionary<int, List<Tuple<int, int>>>();
+            //Dictionary<int, List<int>> PR_unknown_cache = new Dictionary<int, List<int>>();
+            Dictionary<int, List<int>>  ItemsByUser_train = R_train.GetItemsByUser();
+            Dictionary<int, List<int>>  ItemsByUser_unknown = R_unknown.GetItemsByUser();
+            Dictionary<int, List<int>> PR_unknown = new Dictionary<int, List<int>>(ItemsByUser_train);
+            List<int> keys = new List<int>(ItemsByUser_train.Keys);
+            foreach(var key in keys)
+            {
+                PR_unknown[key].AddRange(ItemsByUser_unknown[key]);
+            }
+
+            /*
+            foreach (var row in R_unknown.Matrix.EnumerateRowsIndexed())
+            {
+                int indexOfUser = row.Item1;
+                PR_unknown_cache[indexOfUser] = new List<int>();
+                Vector<double> itemsOfUser = row.Item2;
+                foreach (var item in itemsOfUser.EnumerateIndexed(Zeros.AllowSkip))
+                {
+                    PR_unknown_cache[indexOfUser].Add(item.Item1);
+                }
+            }
+            foreach (var row in R_train.Matrix.EnumerateRowsIndexed())
+            {
+                int indexOfUser = row.Item1;
+                Vector<double> itemsOfUser = row.Item2;
+                foreach (var item in itemsOfUser.EnumerateIndexed(Zeros.AllowSkip))
+                {
+                    PR_unknown_cache[indexOfUser].Add(item.Item1);
+                }
+            }
+            */
+
 
             Utils.StartTimer();
-            PrefRelations PR_predicted = PrefNMF.PredictPrefRelations(PR_train, PR_unknown,
-                maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount);
+            SparseMatrix PR_predicted = PrefNMF.PredictPrefRelations(PR_train, PR_unknown,
+                maxEpoch, learnRate, regularizationOfUser, regularizationOfItem, factorCount, quantizer);
 
             // Both predicted and train need to be quantized
             // otherwise OMF won't accept
-            PR_predicted.quantization(0, 1.0,
-                new List<double> { Config.Preferences.LessPreferred, 
-                        Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });
-            DataMatrix R_predictedByPrefNMF = new DataMatrix(PR_predicted.GetPositionMatrix());
+            //PR_predicted.quantization(0, 1.0,
+             //   new List<double> { Config.Preferences.LessPreferred, 
+            //            Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });
+            DataMatrix R_predictedByPrefNMF = new DataMatrix(PR_predicted);// new DataMatrix(PR_predicted.GetPositionMatrix());
 
             // PR_train itself is already in quantized form!
             //PR_train.quantization(0, 1.0, new List<double> { Config.Preferences.LessPreferred, Config.Preferences.EquallyPreferred, Config.Preferences.Preferred });

@@ -169,13 +169,12 @@ namespace RecSys.Numerical
 
         public void Quantization(double min, double range, List<double> quantizer)
         {
-            SparseMatrix ratingMatrixQuantized = new SparseMatrix(UserCount, ItemCount);
+            //SparseMatrix ratingMatrixQuantized = new SparseMatrix(UserCount, ItemCount);
+            List<Tuple<int, int, double>> ratingMatrixQuantizedCache = new List<Tuple<int, int, double>>();
 
             int binCount = quantizer.Count;
             double binSize = range / binCount;
-            Utils.WriteMatrix(ratingMatrix, "beforequantization.csv");
-
-
+            
             foreach (var element in ratingMatrix.EnumerateIndexed(Zeros.AllowSkip))
             {
                 int indexOfUser = element.Item1;
@@ -185,14 +184,15 @@ namespace RecSys.Numerical
                 {
                     if (value < (indexOfBin + 1) * binSize + min)
                     {
-                        ratingMatrixQuantized[indexOfUser, indexOfItem] = quantizer[indexOfBin];
+                        ratingMatrixQuantizedCache.Add(new Tuple<int, int, double>(indexOfUser, indexOfItem, quantizer[indexOfBin]));
+                        //ratingMatrixQuantized[indexOfUser, indexOfItem] = quantizer[indexOfBin];
                         break;
                     }
                 }
             }
-            ratingMatrix = ratingMatrixQuantized;
-
-            Utils.WriteMatrix(ratingMatrix, "afterquantization.csv");
+            //SparseMatrix ratingMatrixQuantized = SparseMatrix.OfIndexed(UserCount, ItemCount, ratingMatrixQuantizedCache);
+            //ratingMatrix = ratingMatrixQuantized;
+            ratingMatrix = SparseMatrix.OfIndexed(UserCount, ItemCount, ratingMatrixQuantizedCache);
         }
 
 

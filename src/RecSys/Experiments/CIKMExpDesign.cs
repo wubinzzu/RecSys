@@ -13,7 +13,7 @@ namespace RecSys.Experiments
         static int neighborCount = 50;
         static int factorCount = 50;
         static int defaultMaxEpoch = 100;
-        static string MovieLens20MFile = "MovieLens1M.data";
+        static string MovieLens20MFile = "MovieLens100K.data";
         static List<int> GivenSizes = new List<int>() { 50, 60 };
         static int minTestSize = 10;
         static bool shuffle = true;
@@ -21,6 +21,7 @@ namespace RecSys.Experiments
         static double defaultLearnRate = 0.1;
         static double defaultRegularization = 0.05;
         static int topN = 10;
+        static int maxCountOfRatings = 500;
 
         /**********************************************************
          * Experiment 1
@@ -31,7 +32,7 @@ namespace RecSys.Experiments
          * However, the Given data size is varied from 30, 40, 50, 60
          * Repeat ten times
          * ********************************************************/
-        public static void NMFonMovieLens20M()
+        public static void NMFonMovieLens100K()
         {
             for(int seed = 1; seed <= 10;  seed++)
             {
@@ -41,6 +42,7 @@ namespace RecSys.Experiments
                     ExperimentEngine experiment = new ExperimentEngine(
                         MovieLens20MFile,
                         givenSize + minTestSize,
+                        maxCountOfRatings,
                         givenSize,
                         shuffle,
                         seed,
@@ -49,7 +51,7 @@ namespace RecSys.Experiments
                         seed * 0.1);
 
                     string log = experiment.RunNMF(defaultMaxEpoch, defaultLearnRate, defaultRegularization, factorCount, topN);
-                    using (StreamWriter w = File.AppendText("NMFonMovieLens20M_Log.txt"))
+                    using (StreamWriter w = File.AppendText("NMFonMovieLens100K_Log.txt"))
                     {
                         w.WriteLine("=========================================" + seed + "/" + givenSize);
                         w.WriteLine(log);

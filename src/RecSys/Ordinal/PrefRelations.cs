@@ -264,7 +264,7 @@ namespace RecSys.Ordinal
         /// </summary>
         /// <param name="userPreferences"></param>
         /// <returns></returns>
-        public Vector<double> PreferencesToPositions(SparseMatrix userPreferences)
+        public static Vector<double> PreferencesToPositions(SparseMatrix userPreferences)
         {
             // Count for each preference type
             // Actually the original paper count the strict preferred and less preferred by exact match
@@ -297,6 +297,11 @@ namespace RecSys.Ordinal
                 }
             }
 
+            // Note that the positions do not add up to 0
+            // because we shifted all values
+            Debug.Assert(
+                Math.Abs(positionByItem.Sum()- ((SparseVector)positionByItem).NonZerosCount * Config.Preferences.PositionShift)
+                < 0.001);
             //+Config.Preferences.PositionShift;
 
             // TODO: May improve later. Some items have position 0 and we dont want to mix
@@ -492,7 +497,6 @@ count + (rating == Config.Preferences.EquallyPreferred ? 1 : 0), 0.0));
                 = new Dictionary<int, SparseMatrix>(preferenceRelations.Count);
             int binCount = quantizer.Count;
             double binSize = range / binCount;
-            Utils.WriteMatrix(preferenceRelations[0], "beforequantization.csv");
             foreach(var pair in preferenceRelations)
             {
                 int indexOfUser = pair.Key;
@@ -517,7 +521,6 @@ count + (rating == Config.Preferences.EquallyPreferred ? 1 : 0), 0.0));
             }
 
             preferenceRelations = preferenceRelationsquantizationd;
-            Utils.WriteMatrix(preferenceRelations[0], "afterquantization.csv");
         }
     }
 }

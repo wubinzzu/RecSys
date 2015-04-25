@@ -71,7 +71,7 @@ namespace RecSys
         /// in random order or not.</param>
         /// <param name="seed">The random seed for shuffle.</param>
         public static void LoadMovieLensSplitByCount(string fileOfDataSet, out DataMatrix R_train,
-            out DataMatrix R_test, int minCountOfRatings = Config.MinCountOfRatings,
+            out DataMatrix R_test, int minCountOfRatings = Config.MinCountOfRatings, int maxCountOfRatings = 500,
             int countOfRatingsForTrain = Config.CountOfRatingsForTrain, bool shuffle = false, int seed = 1)
         {
             Dictionary<int, int> userByIndex = new Dictionary<int, int>();   // Mapping from index in movielens file to user index in matrix
@@ -98,12 +98,12 @@ namespace RecSys
                 }
             }
 
-            // Remove users with too few ratings
+            // Remove users with too few or more many ratings
             int countOfRemovedUsers = 0;
             List<int> indexes = userByIndex.Keys.ToList();
             foreach (int fileIndexOfUser in indexes)
             {
-                if (ratingCountByUser[fileIndexOfUser] < minCountOfRatings)
+                if (ratingCountByUser[fileIndexOfUser] < minCountOfRatings || ratingCountByUser[fileIndexOfUser] > maxCountOfRatings)
                 {
                     int indexOfRemovedUser = userByIndex[fileIndexOfUser];
                     userByIndex.Remove(fileIndexOfUser);
