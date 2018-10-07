@@ -48,8 +48,3 @@ References
  6. S.-W. Liu, T. Tran, G. Li and Y, Jiang. [Ordinal Random Fields for Recommender Systems](http://www.jmlr.org/proceedings/papers/v39/liu14.html). In Proceedings of the Sixth Asian Conference on Machine Learning (ACML 2014), pp. 283–298, 2014. [[PDF]](http://prada-research.net/~truyen/papers/liu2014ordinal.pdf)
 
   
-
-
-Copyright & Licensing
----------------------
-Coming soon.
